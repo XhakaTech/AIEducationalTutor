@@ -1,4 +1,8 @@
-import { GoogleGenerativeAI, GenerativeModel, GenerationConfig } from '@google/generative-ai';
+import {
+  GoogleGenerativeAI,
+  GenerativeModel,
+  GenerationConfig,
+} from "@google/generative-ai";
 
 // Initialize the Google Generative AI with the API key
 const genAI = new GoogleGenerativeAI(process.env.GEMINI_API_KEY!);
@@ -12,43 +16,46 @@ const defaultConfig: GenerationConfig = {
 };
 
 // Create a model instance with the Gemini Pro model
-const model = genAI.getGenerativeModel({ 
-  model: "gemini-pro",
-  generationConfig: defaultConfig
+const model = genAI.getGenerativeModel({
+  model: "gemini-2.0-flash",
+  generationConfig: defaultConfig,
 });
 
 // Basic chat history for maintaining context in conversations
 type Message = {
-  role: 'user' | 'model' | 'system';
+  role: "user" | "model" | "system";
   content: string;
 };
 
 /**
  * Generate content using Gemini based on the provided prompt
  */
-export async function generateContent(prompt: string, systemPrompt?: string): Promise<string> {
+export async function generateContent(
+  prompt: string,
+  systemPrompt?: string,
+): Promise<string> {
   try {
     const messages: Message[] = [];
-    
+
     // Add system prompt if provided
     if (systemPrompt) {
       messages.push({
-        role: 'system',
-        content: systemPrompt
+        role: "system",
+        content: systemPrompt,
       });
     }
-    
+
     // Add the user prompt
     messages.push({
-      role: 'user',
-      content: prompt
+      role: "user",
+      content: prompt,
     });
 
     // Generate content using the chat method
     const result = await model.generateContent({
-      contents: messages.map(msg => ({
-        role: msg.role === 'model' ? 'model' : 'user', // Gemini API only supports user and model roles
-        parts: [{ text: msg.content }]
+      contents: messages.map((msg) => ({
+        role: msg.role === "model" ? "model" : "user", // Gemini API only supports user and model roles
+        parts: [{ text: msg.content }],
       })),
     });
 
@@ -56,8 +63,8 @@ export async function generateContent(prompt: string, systemPrompt?: string): Pr
     const response = result.response;
     return response.text();
   } catch (error) {
-    console.error('Error generating content with Gemini:', error);
-    throw new Error('Failed to generate content with Gemini API');
+    console.error("Error generating content with Gemini:", error);
+    throw new Error("Failed to generate content with Gemini API");
   }
 }
 
@@ -67,9 +74,9 @@ export async function generateContent(prompt: string, systemPrompt?: string): Pr
 export async function processChat(messages: Message[]): Promise<string> {
   try {
     // Map our message format to Gemini's format
-    const geminiMessages = messages.map(msg => ({
-      role: msg.role === 'model' ? 'model' : 'user', // Gemini API only supports user and model roles
-      parts: [{ text: msg.content }]
+    const geminiMessages = messages.map((msg) => ({
+      role: msg.role === "model" ? "model" : "user", // Gemini API only supports user and model roles
+      parts: [{ text: msg.content }],
     }));
 
     // Generate content using the chat method
@@ -81,8 +88,8 @@ export async function processChat(messages: Message[]): Promise<string> {
     const response = result.response;
     return response.text();
   } catch (error) {
-    console.error('Error processing chat with Gemini:', error);
-    throw new Error('Failed to process chat with Gemini API');
+    console.error("Error processing chat with Gemini:", error);
+    throw new Error("Failed to process chat with Gemini API");
   }
 }
 
@@ -93,19 +100,19 @@ export async function generateQuiz(
   subtopicTitle: string,
   subtopicObjective: string,
   keyConcepts: string[],
-  existingQuestions: string[]
+  existingQuestions: string[],
 ): Promise<any> {
   try {
     const prompt = `
       You are an educational quiz generator. Create a quiz for the subtopic "${subtopicTitle}" 
       with the learning objective: "${subtopicObjective}".
       
-      The key concepts are: ${keyConcepts.join(', ')}.
+      The key concepts are: ${keyConcepts.join(", ")}.
       
       Please generate 5 multiple-choice questions. Each question should have 4 options with exactly one correct answer.
       The questions should be challenging but fair, and directly related to the key concepts.
       
-      DO NOT repeat these existing questions: ${existingQuestions.join(', ')}
+      DO NOT repeat these existing questions: ${existingQuestions.join(", ")}
       
       Format your response as a JSON object with the following structure:
       {
@@ -124,17 +131,17 @@ export async function generateQuiz(
     `;
 
     const response = await generateContent(prompt);
-    
+
     // Extract JSON from response (in case the model returns extra text)
     const jsonMatch = response.match(/\{[\s\S]*\}/);
     if (jsonMatch) {
       return JSON.parse(jsonMatch[0]);
     }
-    
-    throw new Error('Failed to parse quiz JSON from Gemini response');
+
+    throw new Error("Failed to parse quiz JSON from Gemini response");
   } catch (error) {
-    console.error('Error generating quiz with Gemini:', error);
-    throw new Error('Failed to generate quiz with Gemini API');
+    console.error("Error generating quiz with Gemini:", error);
+    throw new Error("Failed to generate quiz with Gemini API");
   }
 }
 
@@ -151,11 +158,11 @@ export async function simplifyExplanation(content: string): Promise<string> {
       Original explanation:
       ${content}
     `;
-    
+
     return await generateContent(prompt);
   } catch (error) {
-    console.error('Error simplifying explanation with Gemini:', error);
-    throw new Error('Failed to simplify explanation with Gemini API');
+    console.error("Error simplifying explanation with Gemini:", error);
+    throw new Error("Failed to simplify explanation with Gemini API");
   }
 }
 
@@ -171,11 +178,11 @@ export async function generateFeedback(quizResults: any): Promise<string> {
       Highlight strengths, areas for improvement, and suggest specific next steps for learning.
       Be encouraging but honest. Keep your response under 200 words and in a friendly, supportive tone.
     `;
-    
+
     return await generateContent(prompt);
   } catch (error) {
-    console.error('Error generating feedback with Gemini:', error);
-    throw new Error('Failed to generate feedback with Gemini API');
+    console.error("Error generating feedback with Gemini:", error);
+    throw new Error("Failed to generate feedback with Gemini API");
   }
 }
 
@@ -185,7 +192,7 @@ export async function generateFeedback(quizResults: any): Promise<string> {
 export async function generateSubtopicContent(
   subtopicTitle: string,
   subtopicObjective: string,
-  keyConcepts: string[]
+  keyConcepts: string[],
 ): Promise<string> {
   try {
     const prompt = `
@@ -194,7 +201,7 @@ export async function generateSubtopicContent(
       Learning objective: ${subtopicObjective}
       
       Key concepts to cover:
-      ${keyConcepts.map(concept => `- ${concept}`).join('\n')}
+      ${keyConcepts.map((concept) => `- ${concept}`).join("\n")}
       
       Structure your explanation with:
       1. A brief introduction to the concept
@@ -206,11 +213,11 @@ export async function generateSubtopicContent(
       Keep your explanation educational, accurate, and engaging. Use a friendly, conversational tone appropriate for a learning environment.
       The total length should be approximately 300-500 words.
     `;
-    
+
     return await generateContent(prompt);
   } catch (error) {
-    console.error('Error generating subtopic content with Gemini:', error);
-    throw new Error('Failed to generate subtopic content with Gemini API');
+    console.error("Error generating subtopic content with Gemini:", error);
+    throw new Error("Failed to generate subtopic content with Gemini API");
   }
 }
 
@@ -220,7 +227,7 @@ export async function generateSubtopicContent(
 export async function calculateFinalScore(
   quizResults: any[],
   finalTestResults: any,
-  lessonTitle: string
+  lessonTitle: string,
 ): Promise<any> {
   try {
     const prompt = `
@@ -250,18 +257,18 @@ export async function calculateFinalScore(
       
       Return ONLY the JSON object without any additional text.
     `;
-    
+
     const response = await generateContent(prompt);
-    
+
     // Extract JSON from response
     const jsonMatch = response.match(/\{[\s\S]*\}/);
     if (jsonMatch) {
       return JSON.parse(jsonMatch[0]);
     }
-    
-    throw new Error('Failed to parse final score JSON from Gemini response');
+
+    throw new Error("Failed to parse final score JSON from Gemini response");
   } catch (error) {
-    console.error('Error calculating final score with Gemini:', error);
-    throw new Error('Failed to calculate final score with Gemini API');
+    console.error("Error calculating final score with Gemini:", error);
+    throw new Error("Failed to calculate final score with Gemini API");
   }
 }
