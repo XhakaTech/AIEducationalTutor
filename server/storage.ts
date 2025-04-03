@@ -7,7 +7,8 @@ import {
   users, lessons, topics, subtopics, resources, quizQuestions, finalTestQuestions, userProgress, userFinalTestResults
 } from "@shared/schema";
 import { db } from "./db";
-import { eq, and, asc, desc } from "drizzle-orm";
+import { eq, and, asc, desc, sql, count } from "drizzle-orm";
+import { hashPassword } from "./auth";
 
 // Modify the interface with any CRUD methods you might need
 export interface IStorage {
@@ -236,27 +237,48 @@ export async function seedDatabase() {
     }
 
     console.log('Seeding database with learning content...');
-    
-    // Add crypto course data if needed
-    const cryptoLesson = await db.select().from(lessons).where(sql`title = 'Crypto Learner Course'`).limit(1);
-    if (cryptoLesson.length === 0) {
-      console.log('Adding cryptocurrency learning content...');
-    }
 
-    // Create demo user
+    // Create demo user with hashed password
+    const hashedPassword = await hashPassword('password');
     const [user] = await db.insert(users).values({
       username: 'crypto_learner',
-      password: 'password', // In production, this would be hashed
+      password: hashedPassword,
       name: 'Crypto Student',
       email: 'student@example.com'
     }).returning();
     
-    // Create a lesson
-    const [lesson] = await db.insert(lessons).values({
-      title: 'Cryptocurrency 101',
-      description: 'A comprehensive introduction to the world of cryptocurrency and blockchain technology.',
-      icon: '₿'
-    }).returning();
+    // Create 4 cryptocurrency lessons
+    const lessonData = [
+      {
+        title: 'Cryptocurrency 101',
+        description: 'A comprehensive introduction to the world of cryptocurrency and blockchain technology.',
+        icon: '₿'
+      },
+      {
+        title: 'Trading Strategies',
+        description: 'Learn different trading strategies for cryptocurrency markets.',
+        icon: '📈'
+      },
+      {
+        title: 'DeFi Fundamentals',
+        description: 'Understand decentralized finance and how to use DeFi platforms.',
+        icon: '🏦'
+      },
+      {
+        title: 'NFTs & Web3',
+        description: 'Explore the world of NFTs and the future of Web3 applications.',
+        icon: '🖼️'
+      }
+    ];
+    
+    const createdLessons = [];
+    for (const lessonInfo of lessonData) {
+      const [newLesson] = await db.insert(lessons).values(lessonInfo).returning();
+      createdLessons.push(newLesson);
+    }
+    
+    // Use the first lesson for the detailed content
+    const lesson = createdLessons[0];
     
     // Create 4 topics for the lesson
     const topicTitles = [

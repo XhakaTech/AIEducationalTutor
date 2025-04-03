@@ -17,9 +17,12 @@ function Router() {
       <ProtectedRoute path="/" component={Dashboard} />
       <ProtectedRoute 
         path="/lesson/:id" 
-        component={({ params }) => (
-          <Lesson lessonId={parseInt(params.id)} />
-        )} 
+        component={({ params }) => {
+          if (!params || !params.id) {
+            return <NotFound />;
+          }
+          return <Lesson lessonId={parseInt(params.id)} />;
+        }} 
       />
       <Route path="/auth" component={AuthPage} />
       <Route component={NotFound} />
