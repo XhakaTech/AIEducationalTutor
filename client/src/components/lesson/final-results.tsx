@@ -38,6 +38,12 @@ export default function FinalResults({
           isPassing
         });
         setFeedback(feedbackText);
+        
+        // Auto-read the feedback with our improved speech service
+        const { speak } = await import('../../services/speech');
+        setTimeout(() => {
+          speak(feedbackText);
+        }, 500);
       } catch (error) {
         console.error('Error generating feedback:', error);
         setFeedback("Congratulations on completing the lesson! Your results show areas of strength and some opportunities for further learning.");

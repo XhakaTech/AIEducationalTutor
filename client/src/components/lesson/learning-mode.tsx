@@ -52,6 +52,9 @@ export default function LearningMode({
       `;
       
       const content = await geminiClient.generateContent(prompt);
+      
+      // Import the speech service here to avoid circular dependencies
+      const { speak } = await import('../../services/speech');
       setGeneratedContent(content);
       
       // Narrate the content
@@ -206,6 +209,7 @@ export default function LearningMode({
             <Button 
               variant="outline"
               onClick={simplifyExplanation}
+              title="Simplify the explanation to make it easier to understand"
             >
               <svg className="w-5 h-5 mr-1.5 text-neutral-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"></path>

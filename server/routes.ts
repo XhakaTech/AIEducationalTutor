@@ -160,16 +160,35 @@ export async function registerRoutes(app: Express): Promise<Server> {
   });
   
   // Text-to-speech endpoint
-  app.post('/api/speak', (req, res) => {
+  app.post('/api/speak', async (req, res) => {
     const { text } = req.body;
     
     if (!text) {
       return res.status(400).json({ message: 'Text is required' });
     }
     
-    // In a web environment, we'll use the browser's SpeechSynthesis API
-    // This endpoint just validates and acknowledges the request
-    res.json({ success: true, message: 'Text-to-speech request processed' });
+    try {
+      // Generate optimized speech text using our enhanced TTS function
+      const optimizedText = await GeminiService.generateSpeech(text);
+      
+      // Send the optimized text to the client
+      // The client will use the browser's SpeechSynthesis API with improved text
+      res.json({ 
+        success: true, 
+        message: 'Text-to-speech request processed',
+        optimizedText,
+        // We could also include additional voice parameters here
+        voiceParams: {
+          rate: 0.9,        // Slightly slower than default
+          pitch: 1.0,       // Default pitch
+          volume: 1.0,      // Full volume
+          preferredVoice: 'en-US-Neural2-C'  // Recommended voice if available
+        }
+      });
+    } catch (error) {
+      console.error('Error generating speech:', error);
+      res.status(500).json({ message: 'Failed to process text-to-speech request' });
+    }
   });
 
   const httpServer = createServer(app);
