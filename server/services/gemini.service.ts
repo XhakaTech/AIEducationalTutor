@@ -15,7 +15,7 @@ const defaultConfig: GenerationConfig = {
   maxOutputTokens: 1024,
 };
 
-// Create a model instance with the Gemini Pro model
+// Create a model instance with the Gemini model
 const model = genAI.getGenerativeModel({
   model: "gemini-2.0-flash-lite",
   generationConfig: defaultConfig,
@@ -36,7 +36,7 @@ export async function generateContent(
   formatAsJson: boolean = false,
 ): Promise<string> {
   const url =
-    "https://generativelanguage.googleapis.com/v1beta/models/gemini-pro:generateContent";
+    "https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash-lite:generateContent";
 
   try {
     const apiKey = process.env.GEMINI_API_KEY;
