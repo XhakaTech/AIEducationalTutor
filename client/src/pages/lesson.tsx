@@ -2,16 +2,29 @@ import { useQuery } from "@tanstack/react-query";
 import { useState, useEffect } from "react";
 import LessonSidebar from "@/components/lesson/sidebar";
 import ContentArea from "@/components/lesson/content-area";
+import { useAuth } from "@/hooks/use-auth";
+import { Bitcoin, LogOut } from "lucide-react";
+import { Button } from "@/components/ui/button";
+import { useLocation } from "wouter";
 
 interface LessonProps {
   lessonId: number;
-  user: any;
 }
 
 export type LessonMode = 'learning' | 'chat' | 'quiz' | 'quiz-results' | 'final-test' | 'final-results';
 export type QuizType = 'db' | 'ai';
 
-export default function Lesson({ lessonId, user }: LessonProps) {
+export default function Lesson({ lessonId }: LessonProps) {
+  const { user, logoutMutation } = useAuth();
+  const [, setLocation] = useLocation();
+
+  const handleLogout = () => {
+    logoutMutation.mutate(undefined, {
+      onSuccess: () => {
+        setLocation('/auth');
+      }
+    });
+  };
   const [currentMode, setCurrentMode] = useState<LessonMode>('learning');
   const [currentTopicIndex, setCurrentTopicIndex] = useState(0);
   const [currentSubtopicIndex, setCurrentSubtopicIndex] = useState(0);
@@ -19,8 +32,9 @@ export default function Lesson({ lessonId, user }: LessonProps) {
   const [quizScore, setQuizScore] = useState(0);
   
   // Fetch lesson data with user progress
-  const { data: lesson, isLoading, error } = useQuery({
-    queryKey: [`/api/lessons/${lessonId}?userId=${user.id}`],
+  const { data: lesson, isLoading, error } = useQuery<any>({
+    queryKey: [`/api/lessons/${lessonId}`, user?.id],
+    enabled: !!user,
   });
 
   // Reset subtopic index when topic changes
@@ -60,7 +74,7 @@ export default function Lesson({ lessonId, user }: LessonProps) {
 
   const markSubtopicAsCompleted = async () => {
     const subtopic = getCurrentSubtopic();
-    if (!subtopic) return;
+    if (!subtopic || !user) return;
 
     try {
       await fetch('/api/progress', {
@@ -135,8 +149,8 @@ export default function Lesson({ lessonId, user }: LessonProps) {
     return (
       <div className="flex h-screen w-full items-center justify-center bg-neutral-50">
         <div className="text-center">
-          <div className="h-16 w-16 mx-auto border-t-4 border-primary-600 border-solid rounded-full animate-spin"></div>
-          <p className="mt-4 text-neutral-600">Loading lesson...</p>
+          <div className="h-16 w-16 mx-auto border-t-4 border-primary border-solid rounded-full animate-spin"></div>
+          <p className="mt-4 text-muted-foreground">Loading lesson...</p>
         </div>
       </div>
     );
@@ -145,9 +159,9 @@ export default function Lesson({ lessonId, user }: LessonProps) {
   if (error || !lesson) {
     return (
       <div className="min-h-screen bg-neutral-50 p-6">
-        <div className="max-w-md mx-auto bg-white rounded-lg shadow p-6">
-          <h1 className="text-xl font-bold text-red-500 mb-2">Error</h1>
-          <p className="text-neutral-600">Failed to load lesson. Please try again later.</p>
+        <div className="max-w-md mx-auto bg-card rounded-lg shadow-md p-6">
+          <h1 className="text-xl font-bold text-destructive mb-2">Error</h1>
+          <p className="text-muted-foreground">Failed to load lesson. Please try again later.</p>
         </div>
       </div>
     );
@@ -160,18 +174,22 @@ export default function Lesson({ lessonId, user }: LessonProps) {
           <div className="flex justify-between h-16">
             <div className="flex">
               <div className="flex-shrink-0 flex items-center">
-                <svg className="h-8 w-8 text-primary-600" fill="currentColor" viewBox="0 0 24 24">
-                  <path d="M12 3L1 9L5 11.18V17.18L12 21L19 17.18V11.18L21 10.09V17H23V9L12 3ZM18.82 9L12 12.72L5.18 9L12 5.28L18.82 9ZM17 15.99L12 18.72L7 15.99V12.27L12 15L17 12.27V15.99Z"></path>
-                </svg>
-                <span className="ml-2 text-xl font-heading font-semibold text-neutral-900">AI Educational Tutor</span>
+                <Bitcoin className="h-8 w-8 text-primary" />
+                <span className="ml-2 text-xl font-heading font-semibold text-foreground">Crypto Academy</span>
               </div>
             </div>
-            <div className="flex items-center">
-              <span className="text-sm text-neutral-600 mr-4">{user.name}</span>
-              <div className="h-8 w-8 rounded-full bg-primary-200 flex items-center justify-center text-primary-700 font-medium">
-                {user.name.split(' ').map((n: string) => n[0]).join('')}
+            {user && (
+              <div className="flex items-center">
+                <span className="text-sm text-muted-foreground mr-4">{user.name}</span>
+                <div className="h-8 w-8 rounded-full bg-primary/20 flex items-center justify-center text-primary font-medium mr-4">
+                  {user.name.split(' ').map((n: string) => n[0]).join('')}
+                </div>
+                <Button variant="outline" size="sm" onClick={handleLogout} disabled={logoutMutation.isPending}>
+                  <LogOut className="h-4 w-4 mr-2" />
+                  {logoutMutation.isPending ? "Logging out..." : "Logout"}
+                </Button>
               </div>
-            </div>
+            )}
           </div>
         </div>
       </header>

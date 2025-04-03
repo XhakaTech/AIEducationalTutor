@@ -15,10 +15,19 @@ import {
   submitFinalTestResults
 } from './controllers/quiz.controller';
 import * as GeminiService from './services/gemini.service';
+import { setupAuth } from './auth';
 
 export async function registerRoutes(app: Express): Promise<Server> {
+  // Setup authentication routes
+  setupAuth(app);
+  
   // User routes
   app.get('/api/user/:id', async (req, res) => {
+    // Check if user is authenticated
+    if (!req.isAuthenticated()) {
+      return res.status(401).json({ message: 'Not authenticated' });
+    }
+    
     const id = parseInt(req.params.id);
     const user = await storage.getUser(id);
     
@@ -26,22 +35,8 @@ export async function registerRoutes(app: Express): Promise<Server> {
       return res.status(404).json({ message: 'User not found' });
     }
     
-    res.json(user);
-  });
-  
-  // For demo purposes - automatically log in as the demo user
-  app.post('/api/auth/login', async (req, res) => {
-    const { username, password } = req.body;
-    
-    // In a real app, we'd verify the password
-    const user = await storage.getUserByUsername(username);
-    
-    if (!user) {
-      return res.status(401).json({ message: 'Invalid credentials' });
-    }
-    
     // Omit password from response
-    const { password: _, ...safeUser } = user;
+    const { password, ...safeUser } = user;
     res.json(safeUser);
   });
   
@@ -159,7 +154,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
   
-  // Text-to-speech endpoint
+  // Text-to-speech endpoint (simplified version without actual speech generation)
   app.post('/api/speak', async (req, res) => {
     const { text } = req.body;
     
@@ -168,25 +163,17 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
     
     try {
-      // Generate optimized speech text using our enhanced TTS function
-      const optimizedText = await GeminiService.generateSpeech(text);
+      // Just log the text instead of generating actual speech
+      console.log('Text for narration:', text);
       
-      // Send the optimized text to the client
-      // The client will use the browser's SpeechSynthesis API with improved text
+      // Return a simple success message
       res.json({ 
         success: true, 
         message: 'Text-to-speech request processed',
-        optimizedText,
-        // We could also include additional voice parameters here
-        voiceParams: {
-          rate: 0.9,        // Slightly slower than default
-          pitch: 1.0,       // Default pitch
-          volume: 1.0,      // Full volume
-          preferredVoice: 'en-US-Neural2-C'  // Recommended voice if available
-        }
+        text
       });
     } catch (error) {
-      console.error('Error generating speech:', error);
+      console.error('Error processing text:', error);
       res.status(500).json({ message: 'Failed to process text-to-speech request' });
     }
   });

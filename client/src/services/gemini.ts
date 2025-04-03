@@ -174,19 +174,15 @@ export const createGeminiClient = (): GeminiClient => {
     }
   };
 
+  // Simplified version without actual speech synthesis
   const speak = async (text: string): Promise<void> => {
     try {
+      // Just log the text rather than playing audio
+      console.log('Content to narrate:', text);
+      // We still keep the API call for tracking
       await apiRequest('POST', '/api/speak', { text });
-      
-      // Use the browser's SpeechSynthesis API for text-to-speech
-      if ('speechSynthesis' in window) {
-        const utterance = new SpeechSynthesisUtterance(text);
-        window.speechSynthesis.speak(utterance);
-      } else {
-        console.log('Text-to-speech is not supported in this browser');
-      }
     } catch (error) {
-      console.error('Error with text-to-speech:', error);
+      console.error('Error with speak function:', error);
     }
   };
 

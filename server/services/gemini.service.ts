@@ -273,37 +273,4 @@ export async function calculateFinalScore(
   }
 }
 
-/**
- * Generate audio content from text using Google Text-to-Speech API
- * This is powered by Gemini model and provides more natural-sounding voice
- */
-export async function generateSpeech(text: string): Promise<string> {
-  try {
-    // For a more realistic implementation, we would use an actual TTS API
-    // But for demonstration, we'll use Gemini to optimize the text for speech
-    const prompt = `
-      Prepare the following text for text-to-speech processing:
-      1. Break long sentences into shorter, more natural speaking segments
-      2. Add appropriate pauses with commas and periods
-      3. Normalize numbers, abbreviations, and symbols to be spoken properly
-      4. Keep the meaning identical to the original
-
-      Original text:
-      ${text}
-
-      Return ONLY the optimized text without any explanations.
-    `;
-
-    const optimizedText = await generateContent(prompt);
-
-    // In a production environment, we would connect to Google Cloud TTS API
-    // or Azure Speech Services for better quality voice generation
-
-    // For now, we'll return the optimized text that will be used with the
-    // browser's built-in speech synthesis, but in a more speech-friendly format
-    return optimizedText;
-  } catch (error) {
-    console.error("Error generating speech with Gemini:", error);
-    throw new Error("Failed to generate speech content");
-  }
-}
+// Text-to-speech functionality has been removed as per requirements
