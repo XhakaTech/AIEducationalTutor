@@ -123,9 +123,20 @@ export function CreateLessonDialog({
       });
     } catch (error) {
       console.error('Error creating custom lesson:', error);
+      
+      // More detailed error message
+      let errorMessage = 'Failed to create custom lesson. Please try again.';
+      
+      // If we have a more specific error from the API response
+      if (error.response && error.response.data && error.response.data.message) {
+        errorMessage = error.response.data.message;
+      } else if (error.message) {
+        errorMessage = error.message;
+      }
+      
       toast({
         title: 'Error',
-        description: 'Failed to create custom lesson. Please try again.',
+        description: errorMessage,
         variant: 'destructive',
       });
     } finally {
