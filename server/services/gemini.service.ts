@@ -17,7 +17,7 @@ const defaultConfig: GenerationConfig = {
 
 // Create a model instance with the Gemini model
 const model = genAI.getGenerativeModel({
-  model: "gemini-2.0-flash-lite",
+  model: "gemini-pro",
   generationConfig: defaultConfig,
 });
 
