@@ -16,6 +16,7 @@ import {
 } from './controllers/quiz.controller';
 import * as GeminiService from './services/gemini.service';
 import { setupAuth } from './auth';
+import { v4 as uuidv4 } from 'uuid';
 
 export async function registerRoutes(app: Express): Promise<Server> {
   // Setup authentication routes
@@ -151,6 +152,132 @@ export async function registerRoutes(app: Express): Promise<Server> {
     } catch (error) {
       console.error('Error calculating final score with Gemini:', error);
       res.status(500).json({ message: 'Failed to calculate final score' });
+    }
+  });
+  
+  // Validate if a topic is crypto-related with Gemini
+  app.post('/api/gemini/validate-topic', async (req, res) => {
+    try {
+      const { topic } = req.body;
+      
+      if (!topic) {
+        return res.status(400).json({ 
+          isValid: false, 
+          message: 'Topic is required' 
+        });
+      }
+      
+      // Call Gemini to validate if topic is cryptocurrency-related
+      const prompt = `
+        You are a cryptocurrency topic validator. Given a topic, you need to determine if it's related to cryptocurrency.
+        
+        Topic: "${topic}"
+        
+        Is this topic related to cryptocurrency, blockchain, digital assets, or finance concepts relevant to crypto?
+        Answer with 'yes' or 'no', followed by a short explanation.
+      `;
+      
+      const response = await GeminiService.generateContent(prompt);
+      
+      // Parse response to determine if topic is valid
+      const isValid = response.toLowerCase().includes('yes');
+      
+      if (isValid) {
+        res.json({ 
+          isValid: true,
+          message: "Topic validated successfully. Creating custom lesson..."
+        });
+      } else {
+        res.json({ 
+          isValid: false,
+          message: "This topic doesn't appear to be related to cryptocurrency. Please enter a crypto-related topic." 
+        });
+      }
+    } catch (error) {
+      console.error('Error validating topic:', error);
+      res.status(500).json({ 
+        isValid: false,
+        message: 'Failed to validate topic. Please try again.' 
+      });
+    }
+  });
+  
+  // Create custom lesson with Gemini
+  app.post('/api/custom-lessons', async (req, res) => {
+    try {
+      const { userId, topic, difficulty } = req.body;
+      
+      if (!topic || !difficulty) {
+        return res.status(400).json({ message: 'Topic and difficulty are required' });
+      }
+      
+      // Generate lesson content using Gemini
+      const lessonTemplate = `
+        Create a comprehensive cryptocurrency lesson about "${topic}" at a ${difficulty} level.
+        Structure your response in the following JSON format:
+        
+        {
+          "title": "Descriptive title for this lesson",
+          "description": "Brief overview of the lesson",
+          "topics": [
+            {
+              "title": "Topic 1 Title",
+              "subtopics": [
+                {
+                  "title": "Subtopic 1 Title",
+                  "objective": "Learning objective for this subtopic",
+                  "content": "Detailed HTML content with proper formatting",
+                  "keyConcepts": ["Key concept 1", "Key concept 2", "Key concept 3"],
+                  "resources": [
+                    {
+                      "title": "Resource Title",
+                      "url": "https://example.com",
+                      "type": "article/video/document",
+                      "description": "Brief description of the resource"
+                    }
+                  ],
+                  "quizQuestions": [
+                    {
+                      "question": "Quiz question text?",
+                      "options": ["Option 1", "Option 2", "Option 3", "Option 4"],
+                      "correctAnswer": 0,
+                      "explanation": "Explanation of the correct answer"
+                    }
+                  ]
+                }
+              ]
+            }
+          ]
+        }
+        
+        Include 2 topics, each with 2 subtopics. Each subtopic should have 2 resources and 3 quiz questions.
+        The content should be educational, accurate, and appropriate for the ${difficulty} level.
+        All content must be in well-formatted HTML.
+      `;
+      
+      const response = await GeminiService.generateContent(lessonTemplate);
+      
+      try {
+        // Parse the JSON response
+        const lessonData = JSON.parse(response);
+        
+        // Add additional fields
+        const customLesson = {
+          ...lessonData,
+          id: uuidv4(),
+          userId,
+          difficulty,
+          createdAt: new Date().toISOString()
+        };
+        
+        res.json(customLesson);
+      } catch (parseError) {
+        console.error('Error parsing Gemini response:', parseError);
+        res.status(500).json({ message: 'Failed to create custom lesson. Invalid response format.' });
+      }
+    } catch (error) {
+      console.error('Error creating custom lesson:', error);
+      res.status(500).json({ message: 'Failed to create custom lesson' });
     }
   });
   

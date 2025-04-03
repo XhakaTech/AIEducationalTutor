@@ -4,12 +4,18 @@ import { Card, CardContent } from "@/components/ui/card";
 import { Progress } from "@/components/ui/progress";
 import { useAuth } from "@/hooks/use-auth";
 import { Button } from "@/components/ui/button";
-import { LogOut, Bitcoin, Award, BookOpen, Check, CheckCircle, Zap } from "lucide-react";
+import { LogOut, Bitcoin, Award, BookOpen, Check, CheckCircle, Zap, Plus } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { CustomLessonsList } from "@/components/custom-lesson/custom-lessons-list";
+import { CreateLessonDialog } from "@/components/custom-lesson/create-lesson-dialog";
+import { useState } from "react";
 
 export default function Dashboard() {
   const { user, logoutMutation } = useAuth();
   const [, navigate] = useLocation();
+  const [activeTab, setActiveTab] = useState('regular');
+  const [createDialogOpen, setCreateDialogOpen] = useState(false);
   
   const { data: lessons = [], isLoading, error } = useQuery<any[]>({
     queryKey: ["/api/lessons", user?.id],
@@ -33,6 +39,11 @@ export default function Dashboard() {
   
   const handleLogout = () => {
     logoutMutation.mutate();
+  };
+  
+  const handleCustomLessonCreated = (newLesson: any) => {
+    // This will be handled by the CustomLessonsList component
+    setActiveTab('custom');
   };
 
   if (isLoading) {
@@ -177,52 +188,78 @@ export default function Dashboard() {
         </div>
         
         <div className="mb-8">
-          <h1 className="text-2xl font-heading font-bold text-neutral-900 mb-6">Your Courses</h1>
+          <div className="flex justify-between items-center mb-6">
+            <h1 className="text-2xl font-heading font-bold text-neutral-900">Your Learning Journey</h1>
+            <Button onClick={() => setCreateDialogOpen(true)}>
+              <Plus className="mr-2 h-4 w-4" />
+              Create Custom Lesson
+            </Button>
+          </div>
           
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-            {lessons?.map((lesson: any) => (
-              <Card 
-                key={lesson.id} 
-                className="overflow-hidden hover:shadow-lg transition duration-150 cursor-pointer relative" 
-                onClick={() => startLesson(lesson.id)}
-              >
-                {lesson.progress === 100 && (
-                  <div className="absolute top-3 right-3 z-10">
-                    <Badge className="bg-green-500">
-                      <Check className="h-3 w-3 mr-1" />
-                      Completed
-                    </Badge>
-                  </div>
-                )}
-                <div className="h-40 bg-gradient-to-r from-primary to-primary/60 relative">
-                  <div className="absolute inset-0 flex items-center justify-center">
-                    <span className="text-white text-5xl opacity-30">{lesson.icon || <BookOpen className="h-12 w-12" />}</span>
-                  </div>
-                  <div className="absolute bottom-4 left-4 right-4">
-                    <h3 className="text-xl font-heading font-semibold text-white">{lesson.title}</h3>
-                  </div>
-                </div>
-                <CardContent className="p-4">
-                  <div className="flex justify-between items-center mb-3">
-                    <span className="text-sm text-muted-foreground">{lesson.topics?.length || 0} topics</span>
-                    <span className="text-sm font-medium text-primary">{lesson.progress || 0}% complete</span>
-                  </div>
-                  <Progress value={lesson.progress || 0} className="h-2.5" />
-                  <p className="mt-4 text-sm text-muted-foreground line-clamp-2">{lesson.description}</p>
-                  
-                  {lesson.final_test_result && (
-                    <div className="mt-3 pt-3 border-t border-gray-100">
-                      <div className="flex items-center">
-                        <Award className="h-4 w-4 text-yellow-500 mr-2" />
-                        <span className="text-sm font-medium">Final Score: {lesson.final_test_result.score}%</span>
+          <Tabs defaultValue="regular" value={activeTab} onValueChange={setActiveTab} className="mb-6">
+            <TabsList className="grid w-full grid-cols-2 max-w-md">
+              <TabsTrigger value="regular">Regular Courses</TabsTrigger>
+              <TabsTrigger value="custom">Custom Courses</TabsTrigger>
+            </TabsList>
+            
+            <TabsContent value="regular" className="mt-6">
+              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+                {lessons?.map((lesson: any) => (
+                  <Card 
+                    key={lesson.id} 
+                    className="overflow-hidden hover:shadow-lg transition duration-150 cursor-pointer relative" 
+                    onClick={() => startLesson(lesson.id)}
+                  >
+                    {lesson.progress === 100 && (
+                      <div className="absolute top-3 right-3 z-10">
+                        <Badge className="bg-green-500">
+                          <Check className="h-3 w-3 mr-1" />
+                          Completed
+                        </Badge>
+                      </div>
+                    )}
+                    <div className="h-40 bg-gradient-to-r from-primary to-primary/60 relative">
+                      <div className="absolute inset-0 flex items-center justify-center">
+                        <span className="text-white text-5xl opacity-30">{lesson.icon || <BookOpen className="h-12 w-12" />}</span>
+                      </div>
+                      <div className="absolute bottom-4 left-4 right-4">
+                        <h3 className="text-xl font-heading font-semibold text-white">{lesson.title}</h3>
                       </div>
                     </div>
-                  )}
-                </CardContent>
-              </Card>
-            ))}
-          </div>
+                    <CardContent className="p-4">
+                      <div className="flex justify-between items-center mb-3">
+                        <span className="text-sm text-muted-foreground">{lesson.topics?.length || 0} topics</span>
+                        <span className="text-sm font-medium text-primary">{lesson.progress || 0}% complete</span>
+                      </div>
+                      <Progress value={lesson.progress || 0} className="h-2.5" />
+                      <p className="mt-4 text-sm text-muted-foreground line-clamp-2">{lesson.description}</p>
+                      
+                      {lesson.final_test_result && (
+                        <div className="mt-3 pt-3 border-t border-gray-100">
+                          <div className="flex items-center">
+                            <Award className="h-4 w-4 text-yellow-500 mr-2" />
+                            <span className="text-sm font-medium">Final Score: {lesson.final_test_result.score}%</span>
+                          </div>
+                        </div>
+                      )}
+                    </CardContent>
+                  </Card>
+                ))}
+              </div>
+            </TabsContent>
+            
+            <TabsContent value="custom" className="mt-6">
+              <CustomLessonsList className="" />
+            </TabsContent>
+          </Tabs>
         </div>
+        
+        {/* Create Custom Lesson Dialog */}
+        <CreateLessonDialog
+          open={createDialogOpen}
+          onOpenChange={setCreateDialogOpen}
+          onLessonCreated={handleCustomLessonCreated}
+        />
       </main>
     </div>
   );

@@ -11,6 +11,7 @@ const Dashboard = lazy(() => import("./pages/dashboard"));
 const AuthPage = lazy(() => import("./pages/auth-page"));
 const NotFound = lazy(() => import("./pages/not-found"));
 const Lesson = lazy(() => import("./pages/lesson"));
+const CustomLesson = lazy(() => import("./pages/custom-lesson"));
 
 // Loading fallback component
 const LoadingFallback = () => (
@@ -31,6 +32,16 @@ function Router() {
               return <NotFound />;
             }
             return <Lesson lessonId={parseInt(params.lessonId)} />;
+          }} 
+        />
+        <ProtectedRoute 
+          path="/custom-lesson/:lessonId" 
+          component={({ params }) => {
+            if (!params || !params.lessonId) {
+              return <NotFound />;
+            }
+            // @ts-ignore - TS doesn't recognize that CustomLesson accepts lessonId prop
+            return <CustomLesson lessonId={params.lessonId} />;
           }} 
         />
         <Route path="/auth" component={AuthPage} />
