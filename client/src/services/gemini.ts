@@ -15,6 +15,16 @@ interface GeminiClient {
   ) => Promise<any>;
   simplifyExplanation: (content: string) => Promise<string>;
   generateFeedback: (quizResults: any) => Promise<string>;
+  generateSubtopicContent: (
+    subtopicTitle: string,
+    subtopicObjective: string,
+    keyConcepts: string[]
+  ) => Promise<string>;
+  calculateFinalScore: (
+    quizResults: any[],
+    finalTestResults: any,
+    lessonTitle: string
+  ) => Promise<any>;
   startChat: () => void;
   sendChatMessage: (message: string) => Promise<string>;
   speak: (text: string) => Promise<void>;
@@ -46,47 +56,15 @@ export const createGeminiClient = (): GeminiClient => {
     existingQuestions: string[]
   ): Promise<any> => {
     try {
-      const prompt = `
-        Generate a quiz for the subtopic "${subtopicTitle}" with the learning objective: "${subtopicObjective}".
-        The key concepts are: ${keyConcepts.join(', ')}.
-        
-        Please generate 5 multiple-choice questions. Each question should have 4 options with exactly one correct answer.
-        
-        DO NOT repeat these existing questions: ${existingQuestions.join(', ')}
-        
-        Format your response as a JSON object with the following structure:
-        {
-          "questions": [
-            {
-              "question": "Question text here?",
-              "options": ["Option A", "Option B", "Option C", "Option D"],
-              "answer": 0, // Index of the correct answer (0-3)
-              "explanation": "Explanation of the correct answer"
-            },
-            // More questions...
-          ]
-        }
-      `;
+      // Use the dedicated endpoint for quiz generation
+      const response = await apiRequest('POST', '/api/gemini/quiz', {
+        subtopicTitle,
+        subtopicObjective,
+        keyConcepts,
+        existingQuestions
+      });
       
-      const response = await generateContent(prompt);
-      
-      // Extract JSON from response (in case the AI includes extra text)
-      const jsonMatch = response.match(/\{[\s\S]*\}/);
-      if (jsonMatch) {
-        return JSON.parse(jsonMatch[0]);
-      }
-      
-      // Fallback if JSON parsing fails
-      return {
-        questions: [
-          {
-            question: "What is the purpose of this subtopic?",
-            options: ["To confuse students", "To entertain", `To teach about ${subtopicTitle}`, "To waste time"],
-            answer: 2,
-            explanation: `This subtopic is designed to help you understand ${subtopicTitle}.`
-          }
-        ]
-      };
+      return await response.json();
     } catch (error) {
       console.error('Error generating quiz with Gemini:', error);
       throw new Error('Failed to generate quiz');
@@ -95,15 +73,13 @@ export const createGeminiClient = (): GeminiClient => {
 
   const simplifyExplanation = async (content: string): Promise<string> => {
     try {
-      const prompt = `
-        Please simplify the following explanation to make it easier to understand.
-        Use simpler vocabulary, shorter sentences, and avoid jargon.
-        
-        Original explanation:
-        ${content}
-      `;
+      // Use the dedicated endpoint for simplifying explanations
+      const response = await apiRequest('POST', '/api/gemini/simplify', {
+        content
+      });
       
-      return await generateContent(prompt);
+      const data: GeminiResponse = await response.json();
+      return data.response;
     } catch (error) {
       console.error('Error simplifying explanation with Gemini:', error);
       throw new Error('Failed to simplify explanation');
@@ -112,18 +88,57 @@ export const createGeminiClient = (): GeminiClient => {
 
   const generateFeedback = async (quizResults: any): Promise<string> => {
     try {
-      const prompt = `
-        Please generate personalized feedback based on these quiz results:
-        ${JSON.stringify(quizResults)}
-        
-        Highlight strengths, areas for improvement, and suggest specific next steps for learning.
-        Be encouraging but honest.
-      `;
+      // Use the dedicated endpoint for generating feedback
+      const response = await apiRequest('POST', '/api/gemini/feedback', {
+        quizResults
+      });
       
-      return await generateContent(prompt);
+      const data: GeminiResponse = await response.json();
+      return data.response;
     } catch (error) {
       console.error('Error generating feedback with Gemini:', error);
       throw new Error('Failed to generate feedback');
+    }
+  };
+
+  const generateSubtopicContent = async (
+    subtopicTitle: string,
+    subtopicObjective: string,
+    keyConcepts: string[]
+  ): Promise<string> => {
+    try {
+      // Use the dedicated endpoint for generating subtopic content
+      const response = await apiRequest('POST', '/api/gemini/subtopic', {
+        subtopicTitle,
+        subtopicObjective,
+        keyConcepts
+      });
+      
+      const data: GeminiResponse = await response.json();
+      return data.response;
+    } catch (error) {
+      console.error('Error generating subtopic content with Gemini:', error);
+      throw new Error('Failed to generate subtopic content');
+    }
+  };
+
+  const calculateFinalScore = async (
+    quizResults: any[],
+    finalTestResults: any,
+    lessonTitle: string
+  ): Promise<any> => {
+    try {
+      // Use the dedicated endpoint for calculating final scores
+      const response = await apiRequest('POST', '/api/gemini/final-score', {
+        quizResults,
+        finalTestResults,
+        lessonTitle
+      });
+      
+      return await response.json();
+    } catch (error) {
+      console.error('Error calculating final score with Gemini:', error);
+      throw new Error('Failed to calculate final score');
     }
   };
 
@@ -142,16 +157,17 @@ export const createGeminiClient = (): GeminiClient => {
       // Add user message to context
       chatMessages.push({ role: "user", content: message });
       
-      // Send entire conversation context to maintain coherence
-      const response = await generateContent(
-        JSON.stringify(chatMessages),
-        "You are responding as part of an ongoing conversation. Respond to the most recent message from the user."
-      );
+      // Use the dedicated endpoint for chat
+      const response = await apiRequest('POST', '/api/gemini/chat', {
+        messages: chatMessages
+      });
+      
+      const data: GeminiResponse = await response.json();
       
       // Add AI response to context
-      chatMessages.push({ role: "assistant", content: response });
+      chatMessages.push({ role: "assistant", content: data.response });
       
-      return response;
+      return data.response;
     } catch (error) {
       console.error('Error sending chat message to Gemini:', error);
       throw new Error('Failed to process chat message');
@@ -162,9 +178,13 @@ export const createGeminiClient = (): GeminiClient => {
     try {
       await apiRequest('POST', '/api/speak', { text });
       
-      // In a real implementation with browser APIs:
-      const utterance = new SpeechSynthesisUtterance(text);
-      window.speechSynthesis.speak(utterance);
+      // Use the browser's SpeechSynthesis API for text-to-speech
+      if ('speechSynthesis' in window) {
+        const utterance = new SpeechSynthesisUtterance(text);
+        window.speechSynthesis.speak(utterance);
+      } else {
+        console.log('Text-to-speech is not supported in this browser');
+      }
     } catch (error) {
       console.error('Error with text-to-speech:', error);
     }
@@ -175,6 +195,8 @@ export const createGeminiClient = (): GeminiClient => {
     generateQuiz,
     simplifyExplanation,
     generateFeedback,
+    generateSubtopicContent,
+    calculateFinalScore,
     startChat,
     sendChatMessage,
     speak

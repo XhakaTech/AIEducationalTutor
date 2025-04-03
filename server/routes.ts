@@ -14,6 +14,7 @@ import {
   submitQuizResults,
   submitFinalTestResults
 } from './controllers/quiz.controller';
+import * as GeminiService from './services/gemini.service';
 
 export async function registerRoutes(app: Express): Promise<Server> {
   // User routes
@@ -59,20 +60,102 @@ export async function registerRoutes(app: Express): Promise<Server> {
   // Progress routes
   app.post('/api/progress', updateUserProgress);
   
-  // Gemini API proxy to avoid CORS issues
+  // Gemini API endpoints
+
+  // Generate content with Gemini
   app.post('/api/gemini', async (req, res) => {
     try {
       const { text, systemPrompt } = req.body;
-      
-      // In a real implementation, this would call the Gemini API
-      // For now, just return a success response
-      res.json({ 
-        response: "This is a simulated response from the Gemini API. In a production environment, this would contain the actual AI-generated content based on your input.",
-        status: "success" 
-      });
+      const response = await GeminiService.generateContent(text, systemPrompt);
+      res.json({ response, status: "success" });
     } catch (error) {
       console.error('Error calling Gemini API:', error);
       res.status(500).json({ message: 'Failed to call Gemini API' });
+    }
+  });
+  
+  // Generate quiz with Gemini
+  app.post('/api/gemini/quiz', async (req, res) => {
+    try {
+      const { subtopicTitle, subtopicObjective, keyConcepts, existingQuestions } = req.body;
+      const quiz = await GeminiService.generateQuiz(
+        subtopicTitle,
+        subtopicObjective,
+        keyConcepts,
+        existingQuestions
+      );
+      res.json(quiz);
+    } catch (error) {
+      console.error('Error generating quiz with Gemini:', error);
+      res.status(500).json({ message: 'Failed to generate quiz' });
+    }
+  });
+  
+  // Simplify explanation with Gemini
+  app.post('/api/gemini/simplify', async (req, res) => {
+    try {
+      const { content } = req.body;
+      const simplified = await GeminiService.simplifyExplanation(content);
+      res.json({ response: simplified, status: "success" });
+    } catch (error) {
+      console.error('Error simplifying content with Gemini:', error);
+      res.status(500).json({ message: 'Failed to simplify content' });
+    }
+  });
+  
+  // Generate feedback with Gemini
+  app.post('/api/gemini/feedback', async (req, res) => {
+    try {
+      const { quizResults } = req.body;
+      const feedback = await GeminiService.generateFeedback(quizResults);
+      res.json({ response: feedback, status: "success" });
+    } catch (error) {
+      console.error('Error generating feedback with Gemini:', error);
+      res.status(500).json({ message: 'Failed to generate feedback' });
+    }
+  });
+  
+  // Process chat messages with Gemini
+  app.post('/api/gemini/chat', async (req, res) => {
+    try {
+      const { messages } = req.body;
+      const response = await GeminiService.processChat(messages);
+      res.json({ response, status: "success" });
+    } catch (error) {
+      console.error('Error processing chat with Gemini:', error);
+      res.status(500).json({ message: 'Failed to process chat' });
+    }
+  });
+  
+  // Generate subtopic content with Gemini
+  app.post('/api/gemini/subtopic', async (req, res) => {
+    try {
+      const { subtopicTitle, subtopicObjective, keyConcepts } = req.body;
+      const content = await GeminiService.generateSubtopicContent(
+        subtopicTitle,
+        subtopicObjective,
+        keyConcepts
+      );
+      res.json({ response: content, status: "success" });
+    } catch (error) {
+      console.error('Error generating subtopic content with Gemini:', error);
+      res.status(500).json({ message: 'Failed to generate subtopic content' });
+    }
+  });
+  
+  // Calculate final score with Gemini
+  app.post('/api/gemini/final-score', async (req, res) => {
+    try {
+      const { quizResults, finalTestResults, lessonTitle } = req.body;
+      const scoreData = await GeminiService.calculateFinalScore(
+        quizResults,
+        finalTestResults,
+        lessonTitle
+      );
+      res.json(scoreData);
+    } catch (error) {
+      console.error('Error calculating final score with Gemini:', error);
+      res.status(500).json({ message: 'Failed to calculate final score' });
     }
   });
   
@@ -84,8 +167,8 @@ export async function registerRoutes(app: Express): Promise<Server> {
       return res.status(400).json({ message: 'Text is required' });
     }
     
-    // In a real implementation, this would integrate with a TTS service
-    // For now, just return success
+    // In a web environment, we'll use the browser's SpeechSynthesis API
+    // This endpoint just validates and acknowledges the request
     res.json({ success: true, message: 'Text-to-speech request processed' });
   });
 
