@@ -3,8 +3,11 @@ import {
   Lesson, Topic, Subtopic, Resource,
   QuizQuestion, FinalTestQuestion,
   UserProgress, InsertUserProgress,
-  UserFinalTestResult, InsertUserFinalTestResult
+  UserFinalTestResult, InsertUserFinalTestResult,
+  users, lessons, topics, subtopics, resources, quizQuestions, finalTestQuestions, userProgress, userFinalTestResults
 } from "@shared/schema";
+import { db } from "./db";
+import { eq, and, asc, desc } from "drizzle-orm";
 
 // Modify the interface with any CRUD methods you might need
 export interface IStorage {
@@ -45,76 +48,31 @@ export interface IStorage {
   getFinalTestResultByUserAndLesson(userId: number, lessonId: number): Promise<UserFinalTestResult | undefined>;
 }
 
-export class MemStorage implements IStorage {
-  private users: Map<number, User>;
-  private lessons: Map<number, Lesson>;
-  private topics: Map<number, Topic>;
-  private subtopics: Map<number, Subtopic>;
-  private resources: Map<number, Resource>;
-  private quizQuestions: Map<number, QuizQuestion>;
-  private finalTestQuestions: Map<number, FinalTestQuestion>;
-  private userProgress: Map<number, UserProgress>;
-  private userFinalTestResults: Map<number, UserFinalTestResult>;
-  
-  currentUserId: number;
-  currentLessonId: number;
-  currentTopicId: number;
-  currentSubtopicId: number;
-  currentResourceId: number;
-  currentQuizQuestionId: number;
-  currentFinalTestQuestionId: number;
-  currentUserProgressId: number;
-  currentUserFinalTestResultId: number;
-
-  constructor() {
-    this.users = new Map();
-    this.lessons = new Map();
-    this.topics = new Map();
-    this.subtopics = new Map();
-    this.resources = new Map();
-    this.quizQuestions = new Map();
-    this.finalTestQuestions = new Map();
-    this.userProgress = new Map();
-    this.userFinalTestResults = new Map();
-    
-    this.currentUserId = 1;
-    this.currentLessonId = 1;
-    this.currentTopicId = 1;
-    this.currentSubtopicId = 1;
-    this.currentResourceId = 1;
-    this.currentQuizQuestionId = 1;
-    this.currentFinalTestQuestionId = 1;
-    this.currentUserProgressId = 1;
-    this.currentUserFinalTestResultId = 1;
-    
-    this.seedData();
-  }
-
+export class DatabaseStorage implements IStorage {
   // User methods
   async getUser(id: number): Promise<User | undefined> {
-    return this.users.get(id);
+    const [user] = await db.select().from(users).where(eq(users.id, id));
+    return user;
   }
 
   async getUserByUsername(username: string): Promise<User | undefined> {
-    return Array.from(this.users.values()).find(
-      (user) => user.username === username,
-    );
+    const [user] = await db.select().from(users).where(eq(users.username, username));
+    return user;
   }
 
   async createUser(insertUser: InsertUser): Promise<User> {
-    const id = this.currentUserId++;
-    const user: User = { ...insertUser, id, created_at: new Date() };
-    this.users.set(id, user);
+    const [user] = await db.insert(users).values(insertUser).returning();
     return user;
   }
   
   // Lesson methods
   async getLessons(): Promise<Lesson[]> {
-    return Array.from(this.lessons.values());
+    return await db.select().from(lessons);
   }
   
   async getLessonById(id: number): Promise<Lesson | undefined> {
-    return this.lessons.get(id);
+    const [lesson] = await db.select().from(lessons).where(eq(lessons.id, id));
+    return lesson;
   }
   
   async getLessonWithDetails(id: number): Promise<any> {
@@ -140,24 +98,28 @@ export class MemStorage implements IStorage {
   
   // Topic methods
   async getTopicsByLessonId(lessonId: number): Promise<Topic[]> {
-    return Array.from(this.topics.values())
-      .filter(topic => topic.lesson_id === lessonId)
-      .sort((a, b) => a.order - b.order);
+    return await db.select()
+      .from(topics)
+      .where(eq(topics.lesson_id, lessonId))
+      .orderBy(asc(topics.order));
   }
   
   async getTopicById(id: number): Promise<Topic | undefined> {
-    return this.topics.get(id);
+    const [topic] = await db.select().from(topics).where(eq(topics.id, id));
+    return topic;
   }
   
   // Subtopic methods
   async getSubtopicsByTopicId(topicId: number): Promise<Subtopic[]> {
-    return Array.from(this.subtopics.values())
-      .filter(subtopic => subtopic.topic_id === topicId)
-      .sort((a, b) => a.order - b.order);
+    return await db.select()
+      .from(subtopics)
+      .where(eq(subtopics.topic_id, topicId))
+      .orderBy(asc(subtopics.order));
   }
   
   async getSubtopicById(id: number): Promise<Subtopic | undefined> {
-    return this.subtopics.get(id);
+    const [subtopic] = await db.select().from(subtopics).where(eq(subtopics.id, id));
+    return subtopic;
   }
   
   async getSubtopicWithResources(id: number): Promise<any> {
@@ -170,30 +132,40 @@ export class MemStorage implements IStorage {
   
   // Resource methods
   async getResourcesBySubtopicId(subtopicId: number): Promise<Resource[]> {
-    return Array.from(this.resources.values())
-      .filter(resource => resource.subtopic_id === subtopicId);
+    return await db.select()
+      .from(resources)
+      .where(eq(resources.subtopic_id, subtopicId));
   }
   
   async getResourceById(id: number): Promise<Resource | undefined> {
-    return this.resources.get(id);
+    const [resource] = await db.select().from(resources).where(eq(resources.id, id));
+    return resource;
   }
   
   // Quiz methods
   async getQuizQuestionsBySubtopicId(subtopicId: number): Promise<QuizQuestion[]> {
-    return Array.from(this.quizQuestions.values())
-      .filter(question => question.subtopic_id === subtopicId);
+    return await db.select()
+      .from(quizQuestions)
+      .where(eq(quizQuestions.subtopic_id, subtopicId));
   }
   
   async getFinalTestQuestionsByLessonId(lessonId: number): Promise<FinalTestQuestion[]> {
-    return Array.from(this.finalTestQuestions.values())
-      .filter(question => question.lesson_id === lessonId);
+    return await db.select()
+      .from(finalTestQuestions)
+      .where(eq(finalTestQuestions.lesson_id, lessonId));
   }
   
   // Progress methods
   async getUserProgress(userId: number, subtopicId: number): Promise<UserProgress | undefined> {
-    return Array.from(this.userProgress.values()).find(
-      progress => progress.user_id === userId && progress.subtopic_id === subtopicId
-    );
+    const [progress] = await db.select()
+      .from(userProgress)
+      .where(
+        and(
+          eq(userProgress.user_id, userId),
+          eq(userProgress.subtopic_id, subtopicId)
+        )
+      );
+    return progress;
   }
   
   async updateUserProgress(progress: InsertUserProgress): Promise<UserProgress> {
@@ -202,84 +174,94 @@ export class MemStorage implements IStorage {
     
     if (existingProgress) {
       // Update existing progress
-      const updatedProgress = {
-        ...existingProgress,
-        ...progress,
-        updated_at: new Date()
-      };
-      this.userProgress.set(existingProgress.id, updatedProgress);
+      const [updatedProgress] = await db.update(userProgress)
+        .set({
+          ...progress,
+          updated_at: new Date()
+        })
+        .where(eq(userProgress.id, existingProgress.id))
+        .returning();
       return updatedProgress;
     } else {
       // Create new progress
-      const id = this.currentUserProgressId++;
-      const newProgress: UserProgress = {
-        ...progress,
-        id,
-        created_at: new Date(),
-        updated_at: new Date()
-      };
-      this.userProgress.set(id, newProgress);
+      const [newProgress] = await db.insert(userProgress)
+        .values({
+          ...progress,
+          created_at: new Date(),
+          updated_at: new Date()
+        })
+        .returning();
       return newProgress;
     }
   }
   
   async getUserProgressByUserId(userId: number): Promise<UserProgress[]> {
-    return Array.from(this.userProgress.values())
-      .filter(progress => progress.user_id === userId);
+    return await db.select()
+      .from(userProgress)
+      .where(eq(userProgress.user_id, userId));
   }
   
   // Final test results
   async saveFinalTestResult(result: InsertUserFinalTestResult): Promise<UserFinalTestResult> {
-    const id = this.currentUserFinalTestResultId++;
-    const newResult: UserFinalTestResult = {
-      ...result,
-      id,
-      completed_at: new Date()
-    };
-    this.userFinalTestResults.set(id, newResult);
+    const [newResult] = await db.insert(userFinalTestResults)
+      .values({
+        ...result,
+        completed_at: new Date()
+      })
+      .returning();
     return newResult;
   }
   
   async getFinalTestResultByUserAndLesson(userId: number, lessonId: number): Promise<UserFinalTestResult | undefined> {
-    return Array.from(this.userFinalTestResults.values()).find(
-      result => result.user_id === userId && result.lesson_id === lessonId
-    );
+    const [result] = await db.select()
+      .from(userFinalTestResults)
+      .where(
+        and(
+          eq(userFinalTestResults.user_id, userId),
+          eq(userFinalTestResults.lesson_id, lessonId)
+        )
+      );
+    return result;
   }
-  
-  // Seed data for development
-  private seedData() {
+}
+
+// Create seed data function which can be used to initialize a new database
+export async function seedDatabase() {
+  try {
+    // Check if database has been seeded already
+    const existingUsers = await db.select().from(users);
+    if (existingUsers.length > 0) {
+      console.log('Database already seeded');
+      return;
+    }
+
     // Create demo user
-    const user: User = {
-      id: this.currentUserId++,
+    const [user] = await db.insert(users).values({
       username: 'student',
       password: 'password',
       name: 'Student Name',
-      email: 'student@example.com',
-      created_at: new Date()
-    };
-    this.users.set(user.id, user);
+      email: 'student@example.com'
+    }).returning();
     
     // Create a lesson
-    const lesson: Lesson = {
-      id: this.currentLessonId++,
+    const [lesson] = await db.insert(lessons).values({
       title: 'Environmental Science 101',
       description: 'Introduction to key environmental concepts and systems.',
       icon: '🌎'
-    };
-    this.lessons.set(lesson.id, lesson);
+    }).returning();
     
     // Create 4 topics for the lesson
     const topicTitles = ['Earth Systems', 'Ecosystems', 'Climate Science', 'Human Impact'];
-    const topics: Topic[] = topicTitles.map((title, index) => {
-      const topic: Topic = {
-        id: this.currentTopicId++,
+    const createdTopics: Topic[] = [];
+    
+    for (let i = 0; i < topicTitles.length; i++) {
+      const [topic] = await db.insert(topics).values({
         lesson_id: lesson.id,
-        title,
-        order: index
-      };
-      this.topics.set(topic.id, topic);
-      return topic;
-    });
+        title: topicTitles[i],
+        order: i
+      }).returning();
+      createdTopics.push(topic);
+    }
     
     // For each topic, create 4 subtopics
     const subtopicData = [
@@ -309,23 +291,25 @@ export class MemStorage implements IStorage {
       ]
     ];
     
-    topics.forEach((topic, topicIndex) => {
-      subtopicData[topicIndex].forEach((data, subtopicIndex) => {
-        const subtopic: Subtopic = {
-          id: this.currentSubtopicId++,
+    for (let topicIndex = 0; topicIndex < createdTopics.length; topicIndex++) {
+      const topic = createdTopics[topicIndex];
+      
+      for (let subtopicIndex = 0; subtopicIndex < subtopicData[topicIndex].length; subtopicIndex++) {
+        const data = subtopicData[topicIndex][subtopicIndex];
+        
+        // Create subtopic
+        const [subtopic] = await db.insert(subtopics).values({
           topic_id: topic.id,
           title: data.title,
           objective: data.objective,
           key_concepts: ['concept1', 'concept2', 'concept3'],
           order: subtopicIndex
-        };
-        this.subtopics.set(subtopic.id, subtopic);
+        }).returning();
         
         // Add resources for each subtopic
         const resourceTypes = ['text', 'image', 'video', 'audio'];
-        resourceTypes.forEach(type => {
-          const resource: Resource = {
-            id: this.currentResourceId++,
+        for (const type of resourceTypes) {
+          await db.insert(resources).values({
             subtopic_id: subtopic.id,
             type,
             url: type === 'image' ? 'https://images.unsplash.com/photo-1544967082-d9d25d867d66?ixlib=rb-1.2.1&auto=format&fit=crop&w=1000&q=80' : '',
@@ -333,38 +317,38 @@ export class MemStorage implements IStorage {
             purpose: `Provides ${type} explanation of ${subtopic.title}`,
             content_tags: [subtopic.title.toLowerCase(), type, 'education'],
             recommended_when: `User needs ${type} explanation`
-          };
-          this.resources.set(resource.id, resource);
-        });
+          });
+        }
         
         // Add quiz questions for each subtopic
         for (let i = 0; i < 5; i++) {
-          const quizQuestion: QuizQuestion = {
-            id: this.currentQuizQuestionId++,
+          await db.insert(quizQuestions).values({
             subtopic_id: subtopic.id,
             question: `Sample question ${i+1} about ${subtopic.title}?`,
             options: ['Option A', 'Option B', 'Option C', 'Option D'],
             answer: Math.floor(Math.random() * 4),
             explanation: `Explanation for sample question ${i+1}`
-          };
-          this.quizQuestions.set(quizQuestion.id, quizQuestion);
+          });
         }
-      });
-    });
+      }
+    }
     
     // Add final test questions for the lesson
     for (let i = 0; i < 10; i++) {
-      const finalTestQuestion: FinalTestQuestion = {
-        id: this.currentFinalTestQuestionId++,
+      await db.insert(finalTestQuestions).values({
         lesson_id: lesson.id,
         question: `Final test question ${i+1} about ${lesson.title}?`,
         options: ['Option A', 'Option B', 'Option C', 'Option D'],
         answer: Math.floor(Math.random() * 4),
         explanation: `Explanation for final test question ${i+1}`
-      };
-      this.finalTestQuestions.set(finalTestQuestion.id, finalTestQuestion);
+      });
     }
+    
+    console.log('Database seeded successfully');
+  } catch (error) {
+    console.error('Error seeding database:', error);
   }
 }
 
-export const storage = new MemStorage();
+// Use the DatabaseStorage implementation
+export const storage = new DatabaseStorage();
