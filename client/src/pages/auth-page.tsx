@@ -1,47 +1,43 @@
-import { useState } from "react";
-import { useAuth } from "@/hooks/use-auth";
+import { useState, useEffect } from "react";
+import { useLocation } from "wouter";
+import { z } from "zod";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
-import { z } from "zod";
-import { insertUserSchema } from "@shared/schema";
-import { useLocation } from "wouter";
-import { Button } from "@/components/ui/button";
+import { useAuth } from "@/hooks/use-auth";
+import { InsertUser } from "@/../../shared/schema";
+
+import {
+  Card,
+  CardContent,
+  CardDescription,
+  CardFooter,
+  CardHeader,
+  CardTitle,
+} from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
+import { Button } from "@/components/ui/button";
 import { Label } from "@/components/ui/label";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from "@/components/ui/card";
-import { Bitcoin, Wallet, ChevronRight, Lock, User } from "lucide-react";
+import { ChevronRight } from "lucide-react";
 
-// Extended schemas with validation
 const loginSchema = z.object({
-  username: z.string().min(3, "Username must be at least 3 characters"),
-  password: z.string().min(6, "Password must be at least 6 characters"),
+  username: z.string().min(1, { message: "Username is required" }),
+  password: z.string().min(1, { message: "Password is required" }),
 });
 
-const registerSchema = insertUserSchema.extend({
-  password: z.string().min(6, "Password must be at least 6 characters"),
-  confirmPassword: z.string(),
-}).refine((data) => data.password === data.confirmPassword, {
-  message: "Passwords do not match",
-  path: ["confirmPassword"],
+const registerSchema = z.object({
+  name: z.string().min(2, { message: "Name must be at least 2 characters" }),
+  email: z.string().email({ message: "Please enter a valid email" }),
+  username: z.string().min(3, { message: "Username must be at least 3 characters" }),
+  password: z.string().min(6, { message: "Password must be at least 6 characters" }),
 });
-
-type LoginFormValues = z.infer<typeof loginSchema>;
-type RegisterFormValues = z.infer<typeof registerSchema>;
 
 export default function AuthPage() {
-  const [activeTab, setActiveTab] = useState<string>("login");
-  const { user, loginMutation, registerMutation } = useAuth();
+  const [activeTab, setActiveTab] = useState("login");
   const [, navigate] = useLocation();
+  const { user, loginMutation, registerMutation } = useAuth();
 
-  // Redirect to dashboard if already logged in
-  if (user) {
-    navigate("/");
-    return null;
-  }
-
-  // Login form
-  const loginForm = useForm<LoginFormValues>({
+  const loginForm = useForm({
     resolver: zodResolver(loginSchema),
     defaultValues: {
       username: "",
@@ -49,28 +45,32 @@ export default function AuthPage() {
     },
   });
 
-  // Register form
-  const registerForm = useForm<RegisterFormValues>({
+  const registerForm = useForm({
     resolver: zodResolver(registerSchema),
     defaultValues: {
-      username: "",
-      password: "",
-      confirmPassword: "",
       name: "",
       email: "",
+      username: "",
+      password: "",
     },
   });
 
-  // Handle login submit
-  const onLoginSubmit = (data: LoginFormValues) => {
-    loginMutation.mutate(data);
+  useEffect(() => {
+    if (user) {
+      navigate("/");
+    }
+  }, [user, navigate]);
+
+  const onLoginSubmit = (values: z.infer<typeof loginSchema>) => {
+    loginMutation.mutate(values);
   };
 
-  // Handle register submit
-  const onRegisterSubmit = (data: RegisterFormValues) => {
-    // Remove confirmPassword as it's not in the schema
-    const { confirmPassword, ...registerData } = data;
-    registerMutation.mutate(registerData);
+  const onRegisterSubmit = (values: z.infer<typeof registerSchema>) => {
+    registerMutation.mutate(values as InsertUser);
+  };
+
+  const handleTabChange = (value: string) => {
+    setActiveTab(value);
   };
 
   return (
@@ -87,7 +87,7 @@ export default function AuthPage() {
             </CardDescription>
           </CardHeader>
           <CardContent>
-            <Tabs defaultValue="login" value={activeTab} onValueChange={setActiveTab}>
+            <Tabs value={activeTab} onValueChange={handleTabChange}>
               <TabsList className="grid grid-cols-2 mb-8">
                 <TabsTrigger value="login">Login</TabsTrigger>
                 <TabsTrigger value="register">Register</TabsTrigger>
@@ -98,46 +98,44 @@ export default function AuthPage() {
                 <form onSubmit={loginForm.handleSubmit(onLoginSubmit)} className="space-y-4">
                   <div className="space-y-2">
                     <Label htmlFor="username">Username</Label>
-                    <div className="relative">
-                      <User className="absolute left-3 top-3 h-4 w-4 text-muted-foreground" />
-                      <Input 
-                        id="username" 
-                        placeholder="johndoe" 
-                        className="pl-10"
-                        {...loginForm.register("username")} 
-                      />
-                    </div>
+                    <Input
+                      id="username"
+                      placeholder="Your username"
+                      {...loginForm.register("username")}
+                    />
                     {loginForm.formState.errors.username && (
-                      <p className="text-sm text-destructive">{loginForm.formState.errors.username.message}</p>
+                      <p className="text-sm text-destructive">
+                        {loginForm.formState.errors.username.message}
+                      </p>
                     )}
                   </div>
-                  
+
                   <div className="space-y-2">
                     <Label htmlFor="password">Password</Label>
-                    <div className="relative">
-                      <Lock className="absolute left-3 top-3 h-4 w-4 text-muted-foreground" />
-                      <Input 
-                        id="password" 
-                        type="password" 
-                        placeholder="••••••••" 
-                        className="pl-10"
-                        {...loginForm.register("password")} 
-                      />
-                    </div>
+                    <Input
+                      id="password"
+                      type="password"
+                      placeholder="Your password"
+                      {...loginForm.register("password")}
+                    />
                     {loginForm.formState.errors.password && (
-                      <p className="text-sm text-destructive">{loginForm.formState.errors.password.message}</p>
+                      <p className="text-sm text-destructive">
+                        {loginForm.formState.errors.password.message}
+                      </p>
                     )}
                   </div>
-                  
-                  <Button 
-                    type="submit" 
+
+                  <Button
+                    type="submit"
                     className="w-full"
                     disabled={loginMutation.isPending}
                   >
                     {loginMutation.isPending ? (
-                      <>Loading...</>
+                      <>Signing in...</>
                     ) : (
-                      <>Sign in <ChevronRight className="ml-2 h-4 w-4" /></>
+                      <>
+                        Sign in <ChevronRight className="ml-2 h-4 w-4" />
+                      </>
                     )}
                   </Button>
                 </form>
@@ -145,79 +143,80 @@ export default function AuthPage() {
 
               {/* Register Form */}
               <TabsContent value="register">
-                <form onSubmit={registerForm.handleSubmit(onRegisterSubmit)} className="space-y-4">
+                <form
+                  onSubmit={registerForm.handleSubmit(onRegisterSubmit)}
+                  className="space-y-4"
+                >
                   <div className="space-y-2">
                     <Label htmlFor="reg-name">Full Name</Label>
-                    <Input 
-                      id="reg-name" 
-                      placeholder="John Doe" 
-                      {...registerForm.register("name")} 
+                    <Input
+                      id="reg-name"
+                      placeholder="John Doe"
+                      {...registerForm.register("name")}
                     />
                     {registerForm.formState.errors.name && (
-                      <p className="text-sm text-destructive">{registerForm.formState.errors.name.message}</p>
+                      <p className="text-sm text-destructive">
+                        {registerForm.formState.errors.name.message}
+                      </p>
                     )}
                   </div>
-                  
+
                   <div className="space-y-2">
                     <Label htmlFor="reg-email">Email</Label>
-                    <Input 
-                      id="reg-email" 
-                      type="email" 
-                      placeholder="john@example.com" 
-                      {...registerForm.register("email")} 
+                    <Input
+                      id="reg-email"
+                      type="email"
+                      placeholder="john@example.com"
+                      {...registerForm.register("email")}
                     />
                     {registerForm.formState.errors.email && (
-                      <p className="text-sm text-destructive">{registerForm.formState.errors.email.message}</p>
+                      <p className="text-sm text-destructive">
+                        {registerForm.formState.errors.email.message}
+                      </p>
                     )}
                   </div>
-                  
+
                   <div className="space-y-2">
                     <Label htmlFor="reg-username">Username</Label>
-                    <Input 
-                      id="reg-username" 
-                      placeholder="johndoe" 
-                      {...registerForm.register("username")} 
+                    <Input
+                      id="reg-username"
+                      placeholder="johndoe"
+                      {...registerForm.register("username")}
                     />
                     {registerForm.formState.errors.username && (
-                      <p className="text-sm text-destructive">{registerForm.formState.errors.username.message}</p>
+                      <p className="text-sm text-destructive">
+                        {registerForm.formState.errors.username.message}
+                      </p>
                     )}
                   </div>
-                  
+
                   <div className="space-y-2">
                     <Label htmlFor="reg-password">Password</Label>
-                    <Input 
-                      id="reg-password" 
-                      type="password" 
-                      placeholder="••••••••" 
-                      {...registerForm.register("password")} 
+                    <Input
+                      id="reg-password"
+                      type="password"
+                      placeholder="Create a secure password"
+                      {...registerForm.register("password")}
                     />
                     {registerForm.formState.errors.password && (
-                      <p className="text-sm text-destructive">{registerForm.formState.errors.password.message}</p>
+                      <p className="text-sm text-destructive">
+                        {registerForm.formState.errors.password.message}
+                      </p>
                     )}
                   </div>
-                  
-                  <div className="space-y-2">
-                    <Label htmlFor="reg-confirm-password">Confirm Password</Label>
-                    <Input 
-                      id="reg-confirm-password" 
-                      type="password" 
-                      placeholder="••••••••" 
-                      {...registerForm.register("confirmPassword")} 
-                    />
-                    {registerForm.formState.errors.confirmPassword && (
-                      <p className="text-sm text-destructive">{registerForm.formState.errors.confirmPassword.message}</p>
-                    )}
-                  </div>
-                  
-                  <Button 
-                    type="submit" 
+
+                  <Button
+                    type="submit"
                     className="w-full"
                     disabled={registerMutation.isPending}
                   >
                     {registerMutation.isPending ? (
                       <>Creating account...</>
                     ) : (
-                      <>Create account <ChevronRight className="ml-2 h-4 w-4" /></>
+                      <>
+                        Create account{" "}
+                        <ChevronRight className="ml-2 h-4 w-4" />
+                      </>
                     )}
                   </Button>
                 </form>
@@ -229,9 +228,9 @@ export default function AuthPage() {
               {activeTab === "login" ? (
                 <p>
                   Don't have an account?{" "}
-                  <Button 
-                    variant="link" 
-                    className="p-0" 
+                  <Button
+                    variant="link"
+                    className="p-0"
                     onClick={() => setActiveTab("register")}
                   >
                     Sign up
@@ -240,9 +239,9 @@ export default function AuthPage() {
               ) : (
                 <p>
                   Already have an account?{" "}
-                  <Button 
-                    variant="link" 
-                    className="p-0" 
+                  <Button
+                    variant="link"
+                    className="p-0"
                     onClick={() => setActiveTab("login")}
                   >
                     Sign in
@@ -253,58 +252,33 @@ export default function AuthPage() {
           </CardFooter>
         </Card>
 
-        {/* Hero Section */}
-        <div className="hidden lg:flex flex-col justify-center">
-          <div className="space-y-6">
-            <div className="bg-gradient-to-r from-primary to-blue-400 p-2 w-14 h-14 rounded-lg flex items-center justify-center shadow-lg mb-8">
-              <Bitcoin className="h-8 w-8 text-white" />
-            </div>
-            
-            <h1 className="text-4xl font-bold tracking-tight bg-gradient-to-r from-primary to-blue-500 bg-clip-text text-transparent">
-              Become a Crypto Expert
-            </h1>
-            
-            <p className="text-xl text-muted-foreground max-w-md">
-              Learn everything about cryptocurrency from the basics to advanced topics with our AI-powered educational platform.
-            </p>
-            
-            <div className="grid grid-cols-2 gap-4 pt-4">
-              <div className="flex items-start space-x-3">
-                <Wallet className="h-6 w-6 text-primary" />
-                <div>
-                  <h3 className="font-medium">Interactive Learning</h3>
-                  <p className="text-sm text-muted-foreground">Learn at your own pace with interactive lessons</p>
-                </div>
-              </div>
-              <div className="flex items-start space-x-3">
-                <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" className="h-6 w-6 text-primary">
-                  <path d="M12 2v8"></path><path d="m16 6-4 4-4-4"></path><path d="M8 16a4 4 0 1 0 8 0"></path>
-                </svg>
-                <div>
-                  <h3 className="font-medium">AI Tutoring</h3>
-                  <p className="text-sm text-muted-foreground">Get personalized help from our AI tutor</p>
-                </div>
-              </div>
-              <div className="flex items-start space-x-3">
-                <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" className="h-6 w-6 text-primary">
-                  <rect x="2" y="2" width="20" height="8" rx="2" ry="2"></rect><rect x="2" y="14" width="20" height="8" rx="2" ry="2"></rect><line x1="6" y1="6" x2="6.01" y2="6"></line><line x1="6" y1="18" x2="6.01" y2="18"></line>
-                </svg>
-                <div>
-                  <h3 className="font-medium">Comprehensive Content</h3>
-                  <p className="text-sm text-muted-foreground">Cover all aspects of cryptocurrency</p>
-                </div>
-              </div>
-              <div className="flex items-start space-x-3">
-                <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" className="h-6 w-6 text-primary">
-                  <path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"></path><circle cx="12" cy="7" r="4"></circle>
-                </svg>
-                <div>
-                  <h3 className="font-medium">Track Progress</h3>
-                  <p className="text-sm text-muted-foreground">Follow your learning journey with progress tracking</p>
-                </div>
-              </div>
-            </div>
+        {/* Right side graphic/information */}
+        <div className="hidden lg:flex flex-col justify-center items-center text-center p-8">
+          <div className="mb-6">
+            <svg
+              xmlns="http://www.w3.org/2000/svg"
+              width="120"
+              height="120"
+              viewBox="0 0 24 24"
+              fill="none"
+              stroke="currentColor"
+              strokeWidth="1"
+              strokeLinecap="round"
+              strokeLinejoin="round"
+              className="text-primary"
+            >
+              <circle cx="12" cy="12" r="10" />
+              <path d="M16 8h-6a2 2 0 1 0 0 4h4a2 2 0 1 1 0 4H8" />
+              <path d="M12 18V6" />
+            </svg>
           </div>
+          <h2 className="text-3xl font-bold mb-4">
+            Learn Cryptocurrency With Confidence
+          </h2>
+          <p className="text-lg text-muted-foreground">
+            Join our platform to master cryptocurrency concepts with interactive
+            lessons, quizzes, and AI-powered assistance.
+          </p>
         </div>
       </div>
     </div>
