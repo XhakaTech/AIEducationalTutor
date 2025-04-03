@@ -23,7 +23,7 @@ function Router() {
           return <Lesson lessonId={parseInt(params.id)} />;
         }} 
       />
-      <Route path="/custom-lesson/:lessonId" component={({ params }) => <CustomLesson lessonId={parseInt(params.lessonId)} />} /> {/* Added route */}
+      <Route path="/custom-lesson/:lessonId" component={({ params }) => <CustomLesson lessonId={params.lessonId} />} /> {/* Custom lesson route */}
       <Route path="/auth" component={AuthPage} />
       <Route path="/admin" component={AdminDashboard} />
       <Route component={NotFound} />

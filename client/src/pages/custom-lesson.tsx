@@ -37,30 +37,82 @@ export default function CustomLessonPage({ lessonId }: CustomLessonPageProps) {
     const loadLesson = () => {
       setIsLoading(true);
       try {
+        console.log('Loading custom lesson with ID:', lessonId);
         const storedLessons = localStorage.getItem('customLessons');
-        if (storedLessons) {
-          const allStoredLessons = JSON.parse(storedLessons);
-          const foundLesson = allStoredLessons.find((l: CustomLesson) => l.id === lessonId);
-          
-          if (foundLesson && foundLesson.userId === user?.id) {
-            setLesson(foundLesson);
-            
-            // Set current topic and subtopic if they exist in the lesson
-            if (foundLesson.currentTopic !== undefined) {
-              setCurrentTopicIndex(foundLesson.currentTopic);
-            }
-            
-            if (foundLesson.currentSubtopic !== undefined) {
-              setCurrentSubtopicIndex(foundLesson.currentSubtopic);
-            }
-          } else {
+        
+        if (!storedLessons) {
+          console.log('No custom lessons found in localStorage');
+          toast({
+            title: "Lesson not found",
+            description: "No custom lessons are available.",
+            variant: "destructive"
+          });
+          navigate('/');
+          return;
+        }
+        
+        let allStoredLessons;
+        try {
+          allStoredLessons = JSON.parse(storedLessons);
+          // Ensure we're working with an array
+          if (!Array.isArray(allStoredLessons)) {
+            console.error('Stored lessons is not an array:', allStoredLessons);
+            allStoredLessons = [];
+          }
+        } catch (parseError) {
+          console.error('Error parsing stored lessons:', parseError);
+          allStoredLessons = [];
+        }
+        
+        // Find the lesson by ID string match
+        const foundLesson = allStoredLessons.find((l: CustomLesson) => 
+          l && typeof l.id === 'string' && l.id === lessonId
+        );
+        
+        console.log('Found lesson:', foundLesson ? 'Yes' : 'No');
+        
+        if (foundLesson && foundLesson.userId === user?.id) {
+          // Validate lesson structure before setting
+          if (!Array.isArray(foundLesson.topics) || foundLesson.topics.length === 0) {
+            console.error('Invalid lesson structure - topics missing or empty:', foundLesson);
             toast({
-              title: "Lesson not found",
-              description: "The requested lesson was not found or doesn't belong to you.",
+              title: "Invalid lesson",
+              description: "This lesson has an invalid structure and cannot be loaded.",
               variant: "destructive"
             });
             navigate('/');
+            return;
           }
+          
+          // Set the lesson
+          setLesson(foundLesson);
+          
+          // Set current topic and subtopic if they exist in the lesson
+          if (foundLesson.currentTopic !== undefined && 
+              foundLesson.currentTopic >= 0 && 
+              foundLesson.currentTopic < foundLesson.topics.length) {
+            setCurrentTopicIndex(foundLesson.currentTopic);
+          }
+          
+          // Validate subtopic index
+          if (foundLesson.currentSubtopic !== undefined && 
+              foundLesson.currentTopic !== undefined &&
+              foundLesson.currentTopic >= 0 && 
+              foundLesson.currentTopic < foundLesson.topics.length &&
+              foundLesson.currentSubtopic >= 0 && 
+              foundLesson.currentSubtopic < foundLesson.topics[foundLesson.currentTopic].subtopics.length) {
+            setCurrentSubtopicIndex(foundLesson.currentSubtopic);
+          }
+          
+          console.log('Lesson loaded successfully');
+        } else {
+          console.log('Lesson not found or not owned by current user');
+          toast({
+            title: "Lesson not found",
+            description: "The requested lesson was not found or doesn't belong to you.",
+            variant: "destructive"
+          });
+          navigate('/');
         }
       } catch (error) {
         console.error('Error loading custom lesson:', error);
@@ -69,6 +121,7 @@ export default function CustomLessonPage({ lessonId }: CustomLessonPageProps) {
           description: "Failed to load the lesson. Please try again.",
           variant: "destructive"
         });
+        navigate('/');
       } finally {
         setIsLoading(false);
       }
@@ -84,22 +137,42 @@ export default function CustomLessonPage({ lessonId }: CustomLessonPageProps) {
     if (!lesson) return;
     
     try {
+      console.log('Saving progress for lesson:', lesson.id);
       const storedLessons = localStorage.getItem('customLessons');
-      if (storedLessons) {
-        const allStoredLessons = JSON.parse(storedLessons);
-        const updatedLessons = allStoredLessons.map((l: CustomLesson) => {
-          if (l.id === lesson.id) {
-            return {
-              ...lesson,
-              currentTopic: currentTopicIndex,
-              currentSubtopic: currentSubtopicIndex
-            };
-          }
-          return l;
-        });
-        
-        localStorage.setItem('customLessons', JSON.stringify(updatedLessons));
+      
+      if (!storedLessons) {
+        console.error('No lessons found in localStorage when trying to save progress');
+        return;
       }
+      
+      let allStoredLessons;
+      try {
+        allStoredLessons = JSON.parse(storedLessons);
+        // Ensure we're working with an array
+        if (!Array.isArray(allStoredLessons)) {
+          console.error('Stored lessons is not an array:', allStoredLessons);
+          allStoredLessons = [];
+        }
+      } catch (parseError) {
+        console.error('Error parsing stored lessons:', parseError);
+        allStoredLessons = [];
+      }
+      
+      // Update the lesson with current progress
+      const updatedLessons = allStoredLessons.map((l: CustomLesson) => {
+        if (l && l.id === lesson.id) {
+          console.log('Updating progress for lesson:', l.id, 'Topic:', currentTopicIndex, 'Subtopic:', currentSubtopicIndex);
+          return {
+            ...lesson,
+            currentTopic: currentTopicIndex,
+            currentSubtopic: currentSubtopicIndex
+          };
+        }
+        return l;
+      });
+      
+      localStorage.setItem('customLessons', JSON.stringify(updatedLessons));
+      console.log('Progress saved successfully');
     } catch (error) {
       console.error('Error saving lesson progress:', error);
     }
@@ -110,40 +183,79 @@ export default function CustomLessonPage({ lessonId }: CustomLessonPageProps) {
     if (!lesson) return;
     
     try {
+      console.log('Marking subtopic as completed:', topicIndex, subtopicIndex);
+      
+      // Create deep copies to avoid mutation issues
       const updatedLesson = { ...lesson };
       const topics = [...updatedLesson.topics];
       const topic = { ...topics[topicIndex] };
       const subtopics = [...topic.subtopics];
+      
+      // Make sure we have valid indices
+      if (topicIndex < 0 || topicIndex >= topics.length) {
+        console.error('Invalid topic index:', topicIndex);
+        return;
+      }
+      
+      if (subtopicIndex < 0 || subtopicIndex >= subtopics.length) {
+        console.error('Invalid subtopic index:', subtopicIndex);
+        return;
+      }
+      
+      // Mark the subtopic as completed
       subtopics[subtopicIndex] = { ...subtopics[subtopicIndex], completed: true };
       
+      // Update the nested structure
       topic.subtopics = subtopics;
       topics[topicIndex] = topic;
       
       // Check if all subtopics are completed
       const allSubtopicsCompleted = topics.every(topic => 
+        Array.isArray(topic.subtopics) && topic.subtopics.length > 0 && 
         topic.subtopics.every(subtopic => subtopic.completed)
       );
       
+      // Create the updated lesson object
       const newLesson = {
         ...updatedLesson,
         topics,
         completed: allSubtopicsCompleted
       };
       
+      // Update state
       setLesson(newLesson);
       
       // Update in localStorage
       const storedLessons = localStorage.getItem('customLessons');
-      if (storedLessons) {
-        const allStoredLessons = JSON.parse(storedLessons);
+      
+      if (!storedLessons) {
+        console.error('No lessons found in localStorage when trying to save completion');
+        return;
+      }
+      
+      try {
+        let allStoredLessons = JSON.parse(storedLessons);
+        
+        // Ensure we're working with an array
+        if (!Array.isArray(allStoredLessons)) {
+          console.error('Stored lessons is not an array when saving completion');
+          allStoredLessons = [];
+        }
+        
+        // Find and update the target lesson
         const updatedLessons = allStoredLessons.map((l: CustomLesson) => {
-          if (l.id === lesson.id) {
+          if (l && l.id === lesson.id) {
+            console.log('Updating completion for lesson:', l.id);
             return newLesson;
           }
           return l;
         });
         
+        // Save back to localStorage
         localStorage.setItem('customLessons', JSON.stringify(updatedLessons));
+        console.log('Completion saved successfully');
+      } catch (parseError) {
+        console.error('Error parsing stored lessons for completion:', parseError);
       }
     } catch (error) {
       console.error('Error saving subtopic completion:', error);

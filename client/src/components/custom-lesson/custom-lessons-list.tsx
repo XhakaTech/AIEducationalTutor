@@ -27,12 +27,30 @@ export function CustomLessonsList({ className }: CustomLessonsListProps) {
       setIsLoading(true);
       try {
         const storedLessons = localStorage.getItem('customLessons');
-        if (storedLessons && user) {
+        
+        // Create default empty array in localStorage if it doesn't exist
+        if (!storedLessons) {
+          localStorage.setItem('customLessons', JSON.stringify([]));
+        }
+        
+        if (user) {
+          // If storedLessons exists, parse and filter it; otherwise use an empty array
+          const lessonsArray = storedLessons ? JSON.parse(storedLessons) : [];
+          
+          // Handle case where parsed data is not an array
+          const validLessonsArray = Array.isArray(lessonsArray) ? lessonsArray : [];
+          
           // Filter lessons to only show those belonging to the current user
-          setCustomLessons(JSON.parse(storedLessons).filter((lesson: CustomLesson) => lesson.userId === user.id));
+          setCustomLessons(validLessonsArray.filter((lesson: CustomLesson) => lesson.userId === user.id));
+          
+          console.log('Custom lessons loaded:', validLessonsArray.length, 'total,', 
+                      validLessonsArray.filter((lesson: CustomLesson) => lesson.userId === user.id).length, 
+                      'for current user');
         }
       } catch (error) {
         console.error('Error loading custom lessons:', error);
+        // Initialize with empty array in case of error
+        setCustomLessons([]);
       } finally {
         setIsLoading(false);
       }

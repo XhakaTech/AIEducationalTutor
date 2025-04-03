@@ -108,9 +108,25 @@ export function CreateLessonDialog({
       
       // Store the lesson in local storage
       const storedLessons = localStorage.getItem('customLessons');
-      const lessons = storedLessons ? JSON.parse(storedLessons) : [];
-      lessons.push(customLesson);
-      localStorage.setItem('customLessons', JSON.stringify(lessons));
+      let lessons = [];
+      
+      try {
+        // Parse existing lessons or create empty array if none exist
+        if (storedLessons) {
+          const parsedLessons = JSON.parse(storedLessons);
+          // Ensure we're working with an array
+          lessons = Array.isArray(parsedLessons) ? parsedLessons : [];
+        }
+        
+        // Add the new lesson
+        lessons.push(customLesson);
+        localStorage.setItem('customLessons', JSON.stringify(lessons));
+        
+        console.log('Custom lesson saved to localStorage:', customLesson.title);
+      } catch (storageError) {
+        console.error('Error saving to localStorage:', storageError);
+        // Still call onLessonCreated even if localStorage fails
+      }
       
       // Reset the form and close the dialog
       form.reset();
