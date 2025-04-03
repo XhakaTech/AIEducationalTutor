@@ -1,4 +1,3 @@
-import { Card } from "@/components/ui/card";
 import { LessonMode, QuizType } from "@/pages/lesson";
 import LearningMode from "./learning-mode";
 import ChatMode from "./chat-mode";
@@ -53,7 +52,7 @@ export default function ContentArea({
   };
   
   return (
-    <Card className="flex-1 overflow-hidden">
+    <div className="h-full flex flex-col overflow-hidden">
       {currentMode === 'learning' && (
         <LearningMode 
           currentTopic={getCurrentTopic()}
@@ -104,6 +103,6 @@ export default function ContentArea({
           lessonTitle={lesson.title}
         />
       )}
-    </Card>
+    </div>
   );
 }
