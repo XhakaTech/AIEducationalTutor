@@ -17,7 +17,7 @@ const defaultConfig: GenerationConfig = {
 
 // Create a model instance with the Gemini model
 const model = genAI.getGenerativeModel({
-  model: "gemini-2.0-flash-lite",
+  model: "gemini-pro", // Using standard available model
   generationConfig: defaultConfig,
 });
 
@@ -36,7 +36,7 @@ export async function generateContent(
   formatAsJson: boolean = false,
 ): Promise<string> {
   const url =
-    "https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash-lite:generateContent";
+    "https://generativelanguage.googleapis.com/v1beta/models/gemini-pro:generateContent";
 
   try {
     const apiKey = process.env.GEMINI_API_KEY;

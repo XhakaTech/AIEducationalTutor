@@ -11,10 +11,16 @@ export const geminiClient = createGeminiClient();
 // Expose the speak function globally for Gemini function calling
 (window as any).speak = geminiClient.speak;
 
-// Use createRoot instead of ReactDOM.render
-const root = ReactDOM.createRoot(document.getElementById("root") as HTMLElement);
-root.render(
-  <React.StrictMode>
-    <App />
-  </React.StrictMode>
-);
+// Use the updated root ID from index.html
+const rootElement = document.getElementById("crypto-academy-root");
+
+if (rootElement) {
+  try {
+    // Simple render approach - no strict mode to avoid double-rendering issues
+    ReactDOM.createRoot(rootElement).render(<App />);
+  } catch (error) {
+    console.error("Error rendering application:", error);
+  }
+} else {
+  console.error("Root element not found - make sure 'crypto-academy-root' exists in index.html");
+}
