@@ -80,12 +80,10 @@ export async function generateContent(
       ]
     };
 
+    // For now, we'll handle system prompts by prepending them to the user prompt
+    // This is because the direct API may have stricter requirements for role formatting
     if (systemPrompt) {
-      requestBody.contents[0].role = 'user';
-      requestBody.contents.unshift({
-        role: 'system',
-        parts: [{ text: systemPrompt }]
-      });
+      prompt = `${systemPrompt}\n\n${prompt}`;
     }
 
     const response = await fetch(`${url}?key=${apiKey}`, {
@@ -109,21 +107,37 @@ export async function generateContent(
     // If this is JSON content, clean it up
     if (formatAsJson) {
       // Remove markdown code blocks if present
-      if (generatedContent.includes("```json")) {
-        generatedContent = generatedContent.replace(/```json\s*/g, "");
-        generatedContent = generatedContent.replace(/```\s*$/g, "");
+      let cleanedContent = generatedContent.trim();
+      
+      // Handle ```json code blocks (most common)
+      if (cleanedContent.includes("```json")) {
+        const jsonStartIndex = cleanedContent.indexOf("```json") + "```json".length;
+        const jsonEndIndex = cleanedContent.lastIndexOf("```");
+        if (jsonEndIndex > jsonStartIndex) {
+          cleanedContent = cleanedContent.substring(jsonStartIndex, jsonEndIndex).trim();
+        }
+      } 
+      // Handle ``` code blocks without language specifier
+      else if (cleanedContent.includes("```")) {
+        const jsonStartIndex = cleanedContent.indexOf("```") + "```".length;
+        const jsonEndIndex = cleanedContent.lastIndexOf("```");
+        if (jsonEndIndex > jsonStartIndex) {
+          cleanedContent = cleanedContent.substring(jsonStartIndex, jsonEndIndex).trim();
+        }
       }
-
-      // Remove any other markdown formatting
-      generatedContent = generatedContent.replace(/```/g, "");
-
+      
+      // Final cleanup of any remaining markdown or non-JSON content
+      cleanedContent = cleanedContent.replace(/```/g, "").trim();
+      
+      console.log('Cleaned JSON content from Gemini (first 100 chars):', cleanedContent.substring(0, 100));
+      
       // Attempt to parse and re-stringify to validate and format
       try {
-        const parsed = JSON.parse(generatedContent);
+        const parsed = JSON.parse(cleanedContent);
         return JSON.stringify(parsed);
       } catch (error) {
         console.error('Error parsing JSON from Gemini:', error);
-        console.error('Raw response:', generatedContent);
+        console.error('Raw response preview:', cleanedContent.substring(0, 200));
         throw new Error('Generated content is not valid JSON');
       }
     }

@@ -1,4 +1,5 @@
 export interface CustomLessonResource {
+  id?: string; // Optional ID for reference
   title: string;
   url: string;
   type: 'article' | 'video' | 'document';
@@ -13,6 +14,7 @@ export interface CustomLessonQuizQuestion {
 }
 
 export interface CustomLessonSubtopic {
+  id?: string; // Optional ID for reference
   title: string;
   objective: string;
   content: string;
@@ -23,6 +25,7 @@ export interface CustomLessonSubtopic {
 }
 
 export interface CustomLessonTopic {
+  id?: string; // Optional ID for reference
   title: string;
   subtopics: CustomLessonSubtopic[];
 }

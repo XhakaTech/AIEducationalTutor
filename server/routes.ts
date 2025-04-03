@@ -167,32 +167,62 @@ export async function registerRoutes(app: Express): Promise<Server> {
         });
       }
       
-      // Call Gemini to validate if topic is cryptocurrency-related
-      const prompt = `
-        You are a cryptocurrency topic validator. Given a topic, you need to determine if it's related to cryptocurrency.
-        
-        Topic: "${topic}"
-        
-        Is this topic related to cryptocurrency, blockchain, digital assets, or finance concepts relevant to crypto?
-        Answer with 'yes' or 'no', followed by a short explanation.
+      // System prompt to ensure English response and proper AI role
+      const systemPrompt = `
+        You are a cryptocurrency education expert who validates topics for a learning platform.
+        Your task is to determine if topics are related to cryptocurrency or blockchain.
+        Keep your responses in English only and respond with either 'YES' or 'NO' followed by a brief explanation.
       `;
       
-      const response = await GeminiService.generateContent(prompt);
+      // Main prompt with clear instructions
+      const prompt = `
+        Topic for validation: "${topic}"
+        
+        Analyze if this topic is directly related to any of the following:
+        - Cryptocurrency (Bitcoin, Ethereum, altcoins, stablecoins, etc.)
+        - Blockchain technology
+        - Digital assets or tokens
+        - DeFi (Decentralized Finance)
+        - Crypto trading, investment, or markets
+        - Mining or consensus mechanisms
+        - Crypto security or wallets
+        - Crypto regulation or compliance
+        - Web3 or crypto applications
+        
+        Respond with:
+        "YES" if the topic is crypto-related, followed by a short explanation.
+        "NO" if the topic is not crypto-related, followed by a short explanation.
+        
+        Your response must start with either YES or NO in capital letters.
+      `;
       
-      // Parse response to determine if topic is valid
-      const isValid = response.toLowerCase().includes('yes');
+      const response = await GeminiService.generateContent(prompt, systemPrompt);
+      
+      // Improved validation logic
+      const responseText = response.trim().toUpperCase();
+      const isValid = responseText.startsWith('YES');
       
       if (isValid) {
+        // Extract explanation (everything after "YES")
+        const explanation = response.substring(3).trim();
         res.json({ 
           isValid: true,
-          message: "Topic validated successfully. Creating custom lesson..."
+          message: "Topic validated successfully. Creating custom lesson...",
+          details: explanation
         });
       } else {
+        // Extract explanation (everything after "NO")
+        const explanation = response.substring(2).trim();
         res.json({ 
           isValid: false,
-          message: "This topic doesn't appear to be related to cryptocurrency. Please enter a crypto-related topic." 
+          message: "This topic doesn't appear to be related to cryptocurrency. Please enter a crypto-related topic.",
+          details: explanation
         });
       }
+      
+      // Log for monitoring
+      console.log(`Topic validation: "${topic}" - Valid: ${isValid}`);
+      
     } catch (error) {
       console.error('Error validating topic:', error);
       res.status(500).json({ 
@@ -212,36 +242,44 @@ export async function registerRoutes(app: Express): Promise<Server> {
       }
       
       // Generate lesson content using Gemini
+      const systemPrompt = `
+        You are a cryptocurrency education specialist creating comprehensive educational lessons.
+        You will create a well-structured lesson on the requested topic.
+        Your response must be in valid JSON format only, without any markdown code blocks or additional text.
+      `;
+      
       const lessonTemplate = `
         Create a comprehensive cryptocurrency lesson about "${topic}" at a ${difficulty} level.
-        Structure your response in the following JSON format:
         
+        The lesson MUST be in ENGLISH only.
+        
+        Structure your response as a JSON object with this exact schema:
         {
-          "title": "Descriptive title for this lesson",
-          "description": "Brief overview of the lesson",
+          "title": "String - Descriptive title for this lesson",
+          "description": "String - Brief overview of the lesson (2-3 sentences)",
           "topics": [
             {
-              "title": "Topic 1 Title",
+              "title": "String - Topic title",
               "subtopics": [
                 {
-                  "title": "Subtopic 1 Title",
-                  "objective": "Learning objective for this subtopic",
-                  "content": "Detailed HTML content with proper formatting",
-                  "keyConcepts": ["Key concept 1", "Key concept 2", "Key concept 3"],
+                  "title": "String - Subtopic title",
+                  "objective": "String - Clear learning objective",
+                  "content": "String - Educational content with HTML formatting (<p>, <ul>, <li>, <strong>, <em> tags only)",
+                  "keyConcepts": ["String array - 3-5 key concepts for this subtopic"],
                   "resources": [
                     {
-                      "title": "Resource Title",
-                      "url": "https://example.com",
-                      "type": "article/video/document",
-                      "description": "Brief description of the resource"
+                      "title": "String - Resource title",
+                      "url": "String - Valid URL to cryptocurrency resource",
+                      "type": "String - Must be one of: article, video, or document",
+                      "description": "String - Brief description of this resource"
                     }
                   ],
                   "quizQuestions": [
                     {
-                      "question": "Quiz question text?",
-                      "options": ["Option 1", "Option 2", "Option 3", "Option 4"],
-                      "correctAnswer": 0,
-                      "explanation": "Explanation of the correct answer"
+                      "question": "String - Clear question text",
+                      "options": ["String array - Four possible answer options"],
+                      "correctAnswer": "Number - Index of correct answer (0-3)",
+                      "explanation": "String - Explanation of why the answer is correct"
                     }
                   ]
                 }
@@ -250,18 +288,27 @@ export async function registerRoutes(app: Express): Promise<Server> {
           ]
         }
         
-        Include 2 topics, each with 2 subtopics. Each subtopic should have 2 resources and 3 quiz questions.
-        The content should be educational, accurate, and appropriate for the ${difficulty} level.
-        All content must be in well-formatted HTML.
-        
-        IMPORTANT: Provide ONLY valid JSON in your response, nothing else. No markdown formatting, no code blocks.
+        Requirements:
+        - Include exactly 2 topics
+        - Each topic must have exactly 2 subtopics
+        - Each subtopic must have 2 resources and 3 quiz questions
+        - All content MUST be in English only
+        - Difficulty level should be appropriate for ${difficulty} (vocabulary, concept complexity)
+        - Content should be educational, accurate, and engaging
+        - All URLs should be real, relevant cryptocurrency resources
       `;
       
-      const response = await GeminiService.generateContent(lessonTemplate, undefined, true);
-      
       try {
-        // Response should already be cleaned JSON from the service
+        // Use our improved JSON parsing in the Gemini service
+        const response = await GeminiService.generateContent(lessonTemplate, systemPrompt, true);
+        
+        // At this point, response should be a valid JSON string from our service
         const lessonData = JSON.parse(response);
+        
+        // Validate that the response has the expected structure
+        if (!lessonData.title || !lessonData.description || !Array.isArray(lessonData.topics)) {
+          throw new Error('Invalid lesson structure: missing required fields');
+        }
         
         // Add additional fields
         const customLesson = {
@@ -272,11 +319,14 @@ export async function registerRoutes(app: Express): Promise<Server> {
           createdAt: new Date().toISOString()
         };
         
+        console.log('Custom lesson created successfully:', customLesson.title);
         res.json(customLesson);
-      } catch (parseError) {
-        console.error('Error parsing Gemini response:', parseError);
-        console.error('Raw response:', response);
-        res.status(500).json({ message: 'Failed to create custom lesson. Invalid response format.' });
+      } catch (error) {
+        console.error('Error creating custom lesson:', error);
+        res.status(500).json({ 
+          message: 'Failed to create custom lesson. The AI response was not properly formatted.',
+          error: error.message
+        });
       }
     } catch (error) {
       console.error('Error creating custom lesson:', error);
