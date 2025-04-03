@@ -1,3 +1,4 @@
+
 import { pgTable, text, serial, integer, boolean, timestamp, jsonb } from "drizzle-orm/pg-core";
 import { createInsertSchema } from "drizzle-zod";
 import { z } from "zod";
@@ -23,14 +24,20 @@ export const insertUserSchema = createInsertSchema(users).pick({
 export const lessons = pgTable("lessons", {
   id: serial("id").primaryKey(),
   title: text("title").notNull(),
-  description: text("description").notNull(),
-  icon: text("icon").notNull(),
+  description: text("description"),
+  level: text("level"),
+  language: text("language"),
+  icon: text("icon").default("book"),
+  is_active: boolean("is_active").default(true),
 });
 
 export const insertLessonSchema = createInsertSchema(lessons).pick({
   title: true,
   description: true,
+  level: true,
+  language: true,
   icon: true,
+  is_active: true,
 });
 
 // Topics
@@ -38,7 +45,7 @@ export const topics = pgTable("topics", {
   id: serial("id").primaryKey(),
   lesson_id: integer("lesson_id").notNull(),
   title: text("title").notNull(),
-  order: integer("order").notNull(),
+  order: integer("order"),
 });
 
 export const insertTopicSchema = createInsertSchema(topics).pick({
@@ -52,9 +59,9 @@ export const subtopics = pgTable("subtopics", {
   id: serial("id").primaryKey(),
   topic_id: integer("topic_id").notNull(),
   title: text("title").notNull(),
-  objective: text("objective").notNull(),
-  key_concepts: jsonb("key_concepts").notNull().$type<string[]>(),
-  order: integer("order").notNull(),
+  objective: text("objective"),
+  key_concepts: jsonb("key_concepts").default('[]').$type<string[]>(),
+  order: integer("order"),
 });
 
 export const insertSubtopicSchema = createInsertSchema(subtopics).pick({
@@ -69,32 +76,36 @@ export const insertSubtopicSchema = createInsertSchema(subtopics).pick({
 export const resources = pgTable("resources", {
   id: serial("id").primaryKey(),
   subtopic_id: integer("subtopic_id").notNull(),
-  type: text("type").notNull(), // 'text', 'image', 'video', 'audio'
-  url: text("url").notNull(),
-  description: text("description").notNull(),
-  purpose: text("purpose").notNull(),
-  content_tags: jsonb("content_tags").notNull().$type<string[]>(),
-  recommended_when: text("recommended_when").notNull(),
+  type: text("type"), // 'text', 'image', 'video', 'audio'
+  url: text("url"),
+  title: text("title"),
+  description: text("description"),
+  purpose: text("purpose"),
+  content_tags: jsonb("content_tags").default('[]').$type<string[]>(),
+  recommended_when: text("recommended_when"),
+  is_optional: boolean("is_optional").default(true),
 });
 
 export const insertResourceSchema = createInsertSchema(resources).pick({
   subtopic_id: true,
   type: true,
   url: true,
+  title: true,
   description: true,
   purpose: true,
   content_tags: true,
   recommended_when: true,
+  is_optional: true,
 });
 
 // Quiz Questions
 export const quizQuestions = pgTable("quiz_questions", {
   id: serial("id").primaryKey(),
   subtopic_id: integer("subtopic_id").notNull(),
-  question: text("question").notNull(),
-  options: jsonb("options").notNull().$type<string[]>(),
-  answer: integer("answer").notNull(), // Index of correct option
-  explanation: text("explanation").notNull(),
+  question: text("question"),
+  options: jsonb("options").$type<string[]>(),
+  answer: integer("answer"), // Index of correct option
+  explanation: text("explanation"),
 });
 
 export const insertQuizQuestionSchema = createInsertSchema(quizQuestions).pick({
@@ -109,10 +120,10 @@ export const insertQuizQuestionSchema = createInsertSchema(quizQuestions).pick({
 export const finalTestQuestions = pgTable("final_test_questions", {
   id: serial("id").primaryKey(),
   lesson_id: integer("lesson_id").notNull(),
-  question: text("question").notNull(),
-  options: jsonb("options").notNull().$type<string[]>(),
-  answer: integer("answer").notNull(), // Index of correct option
-  explanation: text("explanation").notNull(),
+  question: text("question"),
+  options: jsonb("options").$type<string[]>(),
+  answer: integer("answer"), // Index of correct option
+  explanation: text("explanation"),
 });
 
 export const insertFinalTestQuestionSchema = createInsertSchema(finalTestQuestions).pick({
@@ -128,7 +139,7 @@ export const userProgress = pgTable("user_progress", {
   id: serial("id").primaryKey(),
   user_id: integer("user_id").notNull(),
   subtopic_id: integer("subtopic_id").notNull(),
-  completed: boolean("completed").notNull().default(false),
+  completed: boolean("completed").default(false),
   db_quiz_score: integer("db_quiz_score"),
   ai_quiz_score: integer("ai_quiz_score"),
   created_at: timestamp("created_at").defaultNow(),
