@@ -10,6 +10,7 @@ import NotFound from "@/pages/not-found";
 import Dashboard from "@/pages/dashboard";
 import Lesson from "@/pages/lesson";
 import AuthPage from "@/pages/auth-page";
+import AdminDashboard from "@/pages/admin-dashboard";
 
 function Router() {
   return (
@@ -23,6 +24,7 @@ function Router() {
         }} 
       />
       <Route path="/auth" component={AuthPage} />
+      <Route path="/admin" component={AdminDashboard} />
       <Route component={NotFound} />
     </Switch>
   );

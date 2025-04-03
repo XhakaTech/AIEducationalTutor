@@ -35,9 +35,9 @@ export async function generateContent(
   systemPrompt?: string,
   formatAsJson: boolean = false,
 ): Promise<string> {
-  // Make sure to use the correct model name in the URL
+  // Using v1beta as v1 isn't working with this model
   const url =
-    "https://generativelanguage.googleapis.com/v1/models/gemini-pro:generateContent";
+    "https://generativelanguage.googleapis.com/v1beta/models/gemini-pro:generateContent";
 
   try {
     const apiKey = process.env.GEMINI_API_KEY;

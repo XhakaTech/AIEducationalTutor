@@ -1,7 +1,11 @@
 import {
   User, InsertUser,
-  Lesson, Topic, Subtopic, Resource,
-  QuizQuestion, FinalTestQuestion,
+  Lesson, InsertLesson, 
+  Topic, InsertTopic, 
+  Subtopic, InsertSubtopic, 
+  Resource, InsertResource,
+  QuizQuestion, InsertQuizQuestion, 
+  FinalTestQuestion, InsertFinalTestQuestion,
   UserProgress, InsertUserProgress,
   UserFinalTestResult, InsertUserFinalTestResult,
   users, lessons, topics, subtopics, resources, quizQuestions, finalTestQuestions, userProgress, userFinalTestResults
@@ -21,23 +25,41 @@ export interface IStorage {
   getLessons(): Promise<Lesson[]>;
   getLessonById(id: number): Promise<Lesson | undefined>;
   getLessonWithDetails(id: number): Promise<any>; // Full lesson with topics, subtopics
+  createLesson(lesson: InsertLesson): Promise<Lesson>;
+  updateLesson(id: number, lesson: Partial<InsertLesson>): Promise<Lesson | undefined>;
+  deleteLesson(id: number): Promise<boolean>;
   
   // Topic methods
   getTopicsByLessonId(lessonId: number): Promise<Topic[]>;
   getTopicById(id: number): Promise<Topic | undefined>;
+  createTopic(topic: InsertTopic): Promise<Topic>;
+  updateTopic(id: number, topic: Partial<InsertTopic>): Promise<Topic | undefined>;
+  deleteTopic(id: number): Promise<boolean>;
   
   // Subtopic methods
   getSubtopicsByTopicId(topicId: number): Promise<Subtopic[]>;
   getSubtopicById(id: number): Promise<Subtopic | undefined>;
   getSubtopicWithResources(id: number): Promise<any>; // Subtopic with resources
+  createSubtopic(subtopic: InsertSubtopic): Promise<Subtopic>;
+  updateSubtopic(id: number, subtopic: Partial<InsertSubtopic>): Promise<Subtopic | undefined>;
+  deleteSubtopic(id: number): Promise<boolean>;
   
   // Resource methods
   getResourcesBySubtopicId(subtopicId: number): Promise<Resource[]>;
   getResourceById(id: number): Promise<Resource | undefined>;
+  createResource(resource: InsertResource): Promise<Resource>;
+  updateResource(id: number, resource: Partial<InsertResource>): Promise<Resource | undefined>;
+  deleteResource(id: number): Promise<boolean>;
   
   // Quiz methods
   getQuizQuestionsBySubtopicId(subtopicId: number): Promise<QuizQuestion[]>;
   getFinalTestQuestionsByLessonId(lessonId: number): Promise<FinalTestQuestion[]>;
+  createQuizQuestion(question: InsertQuizQuestion): Promise<QuizQuestion>;
+  updateQuizQuestion(id: number, question: Partial<InsertQuizQuestion>): Promise<QuizQuestion | undefined>;
+  deleteQuizQuestion(id: number): Promise<boolean>;
+  createFinalTestQuestion(question: InsertFinalTestQuestion): Promise<FinalTestQuestion>;
+  updateFinalTestQuestion(id: number, question: Partial<InsertFinalTestQuestion>): Promise<FinalTestQuestion | undefined>;
+  deleteFinalTestQuestion(id: number): Promise<boolean>;
   
   // Progress methods
   getUserProgress(userId: number, subtopicId: number): Promise<UserProgress | undefined>;
@@ -223,6 +245,170 @@ export class DatabaseStorage implements IStorage {
         )
       );
     return result;
+  }
+
+  // Admin CRUD operations
+  // Lesson management
+  async createLesson(lesson: InsertLesson): Promise<Lesson> {
+    const [newLesson] = await db.insert(lessons).values(lesson).returning();
+    return newLesson;
+  }
+
+  async updateLesson(id: number, lesson: Partial<InsertLesson>): Promise<Lesson | undefined> {
+    const [updatedLesson] = await db.update(lessons)
+      .set(lesson)
+      .where(eq(lessons.id, id))
+      .returning();
+    return updatedLesson;
+  }
+
+  async deleteLesson(id: number): Promise<boolean> {
+    // First delete all dependencies like topics, subtopics, etc.
+    const topics = await this.getTopicsByLessonId(id);
+    
+    for (const topic of topics) {
+      await this.deleteTopic(topic.id);
+    }
+    
+    // Delete final test questions
+    await db.delete(finalTestQuestions)
+      .where(eq(finalTestQuestions.lesson_id, id));
+      
+    // Delete final test results
+    await db.delete(userFinalTestResults)
+      .where(eq(userFinalTestResults.lesson_id, id));
+    
+    // Finally delete the lesson
+    const result = await db.delete(lessons)
+      .where(eq(lessons.id, id));
+    
+    return result.rowCount > 0;
+  }
+
+  // Topic management
+  async createTopic(topic: InsertTopic): Promise<Topic> {
+    const [newTopic] = await db.insert(topics).values(topic).returning();
+    return newTopic;
+  }
+
+  async updateTopic(id: number, topic: Partial<InsertTopic>): Promise<Topic | undefined> {
+    const [updatedTopic] = await db.update(topics)
+      .set(topic)
+      .where(eq(topics.id, id))
+      .returning();
+    return updatedTopic;
+  }
+
+  async deleteTopic(id: number): Promise<boolean> {
+    // First delete all subtopics
+    const subtopics = await this.getSubtopicsByTopicId(id);
+    
+    for (const subtopic of subtopics) {
+      await this.deleteSubtopic(subtopic.id);
+    }
+    
+    // Then delete the topic
+    const result = await db.delete(topics)
+      .where(eq(topics.id, id));
+    
+    return result.rowCount > 0;
+  }
+
+  // Subtopic management
+  async createSubtopic(subtopic: InsertSubtopic): Promise<Subtopic> {
+    const [newSubtopic] = await db.insert(subtopics).values(subtopic).returning();
+    return newSubtopic;
+  }
+
+  async updateSubtopic(id: number, subtopic: Partial<InsertSubtopic>): Promise<Subtopic | undefined> {
+    const [updatedSubtopic] = await db.update(subtopics)
+      .set(subtopic)
+      .where(eq(subtopics.id, id))
+      .returning();
+    return updatedSubtopic;
+  }
+
+  async deleteSubtopic(id: number): Promise<boolean> {
+    // Delete related resources
+    await db.delete(resources)
+      .where(eq(resources.subtopic_id, id));
+    
+    // Delete related quiz questions
+    await db.delete(quizQuestions)
+      .where(eq(quizQuestions.subtopic_id, id));
+    
+    // Delete user progress
+    await db.delete(userProgress)
+      .where(eq(userProgress.subtopic_id, id));
+    
+    // Delete the subtopic
+    const result = await db.delete(subtopics)
+      .where(eq(subtopics.id, id));
+    
+    return result.rowCount > 0;
+  }
+
+  // Resource management
+  async createResource(resource: InsertResource): Promise<Resource> {
+    const [newResource] = await db.insert(resources).values(resource).returning();
+    return newResource;
+  }
+
+  async updateResource(id: number, resource: Partial<InsertResource>): Promise<Resource | undefined> {
+    const [updatedResource] = await db.update(resources)
+      .set(resource)
+      .where(eq(resources.id, id))
+      .returning();
+    return updatedResource;
+  }
+
+  async deleteResource(id: number): Promise<boolean> {
+    const result = await db.delete(resources)
+      .where(eq(resources.id, id));
+    
+    return result.rowCount > 0;
+  }
+
+  // Quiz question management
+  async createQuizQuestion(question: InsertQuizQuestion): Promise<QuizQuestion> {
+    const [newQuestion] = await db.insert(quizQuestions).values(question).returning();
+    return newQuestion;
+  }
+
+  async updateQuizQuestion(id: number, question: Partial<InsertQuizQuestion>): Promise<QuizQuestion | undefined> {
+    const [updatedQuestion] = await db.update(quizQuestions)
+      .set(question)
+      .where(eq(quizQuestions.id, id))
+      .returning();
+    return updatedQuestion;
+  }
+
+  async deleteQuizQuestion(id: number): Promise<boolean> {
+    const result = await db.delete(quizQuestions)
+      .where(eq(quizQuestions.id, id));
+    
+    return result.rowCount > 0;
+  }
+
+  // Final test question management
+  async createFinalTestQuestion(question: InsertFinalTestQuestion): Promise<FinalTestQuestion> {
+    const [newQuestion] = await db.insert(finalTestQuestions).values(question).returning();
+    return newQuestion;
+  }
+
+  async updateFinalTestQuestion(id: number, question: Partial<InsertFinalTestQuestion>): Promise<FinalTestQuestion | undefined> {
+    const [updatedQuestion] = await db.update(finalTestQuestions)
+      .set(question)
+      .where(eq(finalTestQuestions.id, id))
+      .returning();
+    return updatedQuestion;
+  }
+
+  async deleteFinalTestQuestion(id: number): Promise<boolean> {
+    const result = await db.delete(finalTestQuestions)
+      .where(eq(finalTestQuestions.id, id));
+    
+    return result.rowCount > 0;
   }
 }
 
