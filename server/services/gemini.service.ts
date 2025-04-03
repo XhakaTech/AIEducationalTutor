@@ -17,7 +17,7 @@ const defaultConfig: GenerationConfig = {
 
 // Create a model instance with the Gemini Pro model
 const model = genAI.getGenerativeModel({
-  model: "gemini-pro",
+  model: "gemini-2.0-flash-lite",
   generationConfig: defaultConfig,
 });
 
@@ -33,14 +33,15 @@ type Message = {
 export async function generateContent(
   prompt: string,
   systemPrompt?: string,
-  formatAsJson: boolean = false
+  formatAsJson: boolean = false,
 ): Promise<string> {
-  const url = 'https://generativelanguage.googleapis.com/v1beta/models/gemini-pro:generateContent';
+  const url =
+    "https://generativelanguage.googleapis.com/v1beta/models/gemini-pro:generateContent";
 
   try {
     const apiKey = process.env.GEMINI_API_KEY;
     if (!apiKey) {
-      throw new Error('GEMINI_API_KEY environment variable is not set');
+      throw new Error("GEMINI_API_KEY environment variable is not set");
     }
 
     // If we're expecting JSON, add specific formatting instructions
@@ -51,8 +52,8 @@ export async function generateContent(
     const requestBody = {
       contents: [
         {
-          parts: [{ text: prompt }]
-        }
+          parts: [{ text: prompt }],
+        },
       ],
       generationConfig: {
         temperature: formatAsJson ? 0.1 : 0.7, // Lower temperature for JSON to be more precise
@@ -62,22 +63,22 @@ export async function generateContent(
       },
       safetySettings: [
         {
-          category: 'HARM_CATEGORY_HARASSMENT',
-          threshold: 'BLOCK_MEDIUM_AND_ABOVE'
+          category: "HARM_CATEGORY_HARASSMENT",
+          threshold: "BLOCK_MEDIUM_AND_ABOVE",
         },
         {
-          category: 'HARM_CATEGORY_HATE_SPEECH',
-          threshold: 'BLOCK_MEDIUM_AND_ABOVE'
+          category: "HARM_CATEGORY_HATE_SPEECH",
+          threshold: "BLOCK_MEDIUM_AND_ABOVE",
         },
         {
-          category: 'HARM_CATEGORY_SEXUALLY_EXPLICIT',
-          threshold: 'BLOCK_MEDIUM_AND_ABOVE'
+          category: "HARM_CATEGORY_SEXUALLY_EXPLICIT",
+          threshold: "BLOCK_MEDIUM_AND_ABOVE",
         },
         {
-          category: 'HARM_CATEGORY_DANGEROUS_CONTENT',
-          threshold: 'BLOCK_MEDIUM_AND_ABOVE'
-        }
-      ]
+          category: "HARM_CATEGORY_DANGEROUS_CONTENT",
+          threshold: "BLOCK_MEDIUM_AND_ABOVE",
+        },
+      ],
     };
 
     // For now, we'll handle system prompts by prepending them to the user prompt
@@ -87,11 +88,11 @@ export async function generateContent(
     }
 
     const response = await fetch(`${url}?key=${apiKey}`, {
-      method: 'POST',
+      method: "POST",
       headers: {
-        'Content-Type': 'application/json'
+        "Content-Type": "application/json",
       },
-      body: JSON.stringify(requestBody)
+      body: JSON.stringify(requestBody),
     });
 
     if (!response.ok) {
@@ -102,49 +103,61 @@ export async function generateContent(
     const data = await response.json();
 
     // Extract the generated text from the response
-    let generatedContent = data.candidates?.[0]?.content?.parts?.[0]?.text || '';
+    let generatedContent =
+      data.candidates?.[0]?.content?.parts?.[0]?.text || "";
 
     // If this is JSON content, clean it up
     if (formatAsJson) {
       // Remove markdown code blocks if present
       let cleanedContent = generatedContent.trim();
-      
+
       // Handle ```json code blocks (most common)
       if (cleanedContent.includes("```json")) {
-        const jsonStartIndex = cleanedContent.indexOf("```json") + "```json".length;
+        const jsonStartIndex =
+          cleanedContent.indexOf("```json") + "```json".length;
         const jsonEndIndex = cleanedContent.lastIndexOf("```");
         if (jsonEndIndex > jsonStartIndex) {
-          cleanedContent = cleanedContent.substring(jsonStartIndex, jsonEndIndex).trim();
+          cleanedContent = cleanedContent
+            .substring(jsonStartIndex, jsonEndIndex)
+            .trim();
         }
-      } 
+      }
       // Handle ``` code blocks without language specifier
       else if (cleanedContent.includes("```")) {
         const jsonStartIndex = cleanedContent.indexOf("```") + "```".length;
         const jsonEndIndex = cleanedContent.lastIndexOf("```");
         if (jsonEndIndex > jsonStartIndex) {
-          cleanedContent = cleanedContent.substring(jsonStartIndex, jsonEndIndex).trim();
+          cleanedContent = cleanedContent
+            .substring(jsonStartIndex, jsonEndIndex)
+            .trim();
         }
       }
-      
+
       // Final cleanup of any remaining markdown or non-JSON content
       cleanedContent = cleanedContent.replace(/```/g, "").trim();
-      
-      console.log('Cleaned JSON content from Gemini (first 100 chars):', cleanedContent.substring(0, 100));
-      
+
+      console.log(
+        "Cleaned JSON content from Gemini (first 100 chars):",
+        cleanedContent.substring(0, 100),
+      );
+
       // Attempt to parse and re-stringify to validate and format
       try {
         const parsed = JSON.parse(cleanedContent);
         return JSON.stringify(parsed);
       } catch (error) {
-        console.error('Error parsing JSON from Gemini:', error);
-        console.error('Raw response preview:', cleanedContent.substring(0, 200));
-        throw new Error('Generated content is not valid JSON');
+        console.error("Error parsing JSON from Gemini:", error);
+        console.error(
+          "Raw response preview:",
+          cleanedContent.substring(0, 200),
+        );
+        throw new Error("Generated content is not valid JSON");
       }
     }
 
     return generatedContent;
   } catch (error) {
-    console.error('Error calling Gemini API:', error);
+    console.error("Error calling Gemini API:", error);
     throw error;
   }
 }
