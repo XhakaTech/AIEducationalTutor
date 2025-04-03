@@ -241,6 +241,7 @@ export async function seedDatabase() {
     const cryptoLesson = await db.select().from(lessons).where(sql`title = 'Crypto Learner Course'`).limit(1);
     if (cryptoLesson.length === 0) {
       console.log('Adding cryptocurrency learning content...');
+    }
 
     // Create demo user
     const [user] = await db.insert(users).values({
