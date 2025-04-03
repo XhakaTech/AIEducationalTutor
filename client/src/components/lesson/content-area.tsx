@@ -101,6 +101,8 @@ export default function ContentArea({
         <FinalResults
           score={quizScore}
           lessonTitle={lesson.title}
+          feedback="Congratulations on completing this course! You've shown a solid understanding of the cryptocurrency concepts covered."
+          onRestart={() => window.location.reload()}
         />
       )}
     </div>

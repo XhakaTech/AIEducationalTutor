@@ -29,6 +29,10 @@ export function DiplomaDialog({ lessonTitle, completionDate, score, open, onOpen
     documentTitle: `Crypto Academy Diploma - ${lessonTitle}`,
     onAfterPrint: () => console.log('Print successful'),
   });
+  
+  const printHandler = () => {
+    handlePrint();
+  };
 
   const handleShare = async () => {
     try {
@@ -102,7 +106,7 @@ export function DiplomaDialog({ lessonTitle, completionDate, score, open, onOpen
         </div>
 
         <DialogFooter className="flex flex-wrap gap-2 sm:gap-0">
-          <Button onClick={handlePrint} variant="outline" className="flex-1 sm:flex-none">
+          <Button onClick={printHandler} variant="outline" className="flex-1 sm:flex-none">
             <Printer className="h-4 w-4 mr-2" />
             Print
           </Button>
@@ -110,7 +114,7 @@ export function DiplomaDialog({ lessonTitle, completionDate, score, open, onOpen
             <Share2 className="h-4 w-4 mr-2" />
             Share
           </Button>
-          <Button onClick={handleDownload} className="flex-1 sm:flex-none">
+          <Button onClick={printHandler} className="flex-1 sm:flex-none">
             <Download className="h-4 w-4 mr-2" />
             Download
           </Button>
