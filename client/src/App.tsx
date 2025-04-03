@@ -12,22 +12,31 @@ const AuthPage = lazy(() => import("./pages/auth-page"));
 const NotFound = lazy(() => import("./pages/not-found"));
 const Lesson = lazy(() => import("./pages/lesson"));
 
+// Loading fallback component
+const LoadingFallback = () => (
+  <div className="flex items-center justify-center min-h-screen">
+    <div className="w-16 h-16 border-4 border-primary border-solid rounded-full border-t-transparent animate-spin"></div>
+  </div>
+);
+
 function Router() {
   return (
-    <Switch>
-      <ProtectedRoute path="/" component={Dashboard} />
-      <ProtectedRoute 
-        path="/lesson/:lessonId" 
-        component={({ params }) => {
-          if (!params || !params.lessonId) {
-            return <NotFound />;
-          }
-          return <Suspense fallback={<div>Loading...</div>}><Lesson lessonId={parseInt(params.lessonId)} /></Suspense>;
-        }} 
-      />
-      <Route path="/auth" component={AuthPage} />
-      <Route component={NotFound} />
-    </Switch>
+    <Suspense fallback={<LoadingFallback />}>
+      <Switch>
+        <ProtectedRoute path="/" component={Dashboard} />
+        <ProtectedRoute 
+          path="/lesson/:lessonId" 
+          component={({ params }) => {
+            if (!params || !params.lessonId) {
+              return <NotFound />;
+            }
+            return <Lesson lessonId={parseInt(params.lessonId)} />;
+          }} 
+        />
+        <Route path="/auth" component={AuthPage} />
+        <Route component={NotFound} />
+      </Switch>
+    </Suspense>
   );
 }
 

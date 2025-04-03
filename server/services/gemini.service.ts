@@ -273,4 +273,30 @@ export async function calculateFinalScore(
   }
 }
 
-// Text-to-speech functionality has been removed as per requirements
+/**
+ * Optimize text for text-to-speech processing
+ */
+export async function generateSpeech(text: string): Promise<string> {
+  try {
+    const prompt = `
+      Optimize the following text for text-to-speech processing:
+      
+      ${text}
+      
+      Please:
+      1. Break long sentences into shorter, clearer ones
+      2. Remove any special characters that might cause speech issues
+      3. Add natural pauses with commas where appropriate
+      4. Spell out abbreviations if needed for clarity
+      5. Keep the meaning exactly the same
+
+      Return only the optimized text without additional comments.
+    `;
+
+    return await generateContent(prompt);
+  } catch (error) {
+    console.error("Error optimizing text for speech with Gemini:", error);
+    // On error, return the original text
+    return text;
+  }
+}
