@@ -10,7 +10,7 @@ export const adminAuth = (req: Request, res: Response, next: Function) => {
   const { adminPassword } = req.body;
   
   // Check against environment variable or hard-coded password (for demo)
-  const correctPassword = process.env.ADMIN_PASSWORD || "admin123456";
+  const correctPassword = process.env.ADMIN_PASSWORD || "admin123";
   
   if (adminPassword !== correctPassword) {
     return res.status(401).json({ message: "Unauthorized access to admin area" });
@@ -99,6 +99,24 @@ export const deleteLesson = async (req: Request, res: Response) => {
   } catch (error) {
     console.error("Error deleting lesson:", error);
     res.status(500).json({ message: "Failed to delete lesson" });
+  }
+};
+
+// Get topics by lesson ID
+export const getTopicsByLessonId = async (req: Request, res: Response) => {
+  try {
+    const { lessonId } = req.params;
+    
+    if (!lessonId) {
+      return res.status(400).json({ message: "Lesson ID is required" });
+    }
+    
+    const topics = await storage.getTopicsByLessonId(parseInt(lessonId));
+    
+    res.json(topics);
+  } catch (error) {
+    console.error("Error fetching topics:", error);
+    res.status(500).json({ message: "Failed to fetch topics" });
   }
 };
 
