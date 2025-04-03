@@ -11,16 +11,31 @@ export const geminiClient = createGeminiClient();
 // Expose the speak function globally for Gemini function calling
 (window as any).speak = geminiClient.speak;
 
-// Use the updated root ID from index.html
-const rootElement = document.getElementById("crypto-academy-root");
-
-if (rootElement) {
-  try {
-    // Simple render approach - no strict mode to avoid double-rendering issues
-    ReactDOM.createRoot(rootElement).render(<App />);
-  } catch (error) {
-    console.error("Error rendering application:", error);
+// Clean up any existing DOM before mounting
+const cleanupDOM = () => {
+  // Make sure we start with a clean DOM
+  const oldRoot = document.getElementById("root");
+  if (oldRoot) {
+    oldRoot.remove();
   }
+};
+
+// Find or create the new mounting point
+cleanupDOM();
+const mountingPoint = document.getElementById("root-mounting-point");
+
+if (mountingPoint) {
+  // Create a fresh root element for React
+  const rootElement = document.createElement("div");
+  rootElement.id = "root";
+  mountingPoint.appendChild(rootElement);
+
+  // Render the app to the new root element
+  ReactDOM.createRoot(rootElement).render(
+    <React.StrictMode>
+      <App />
+    </React.StrictMode>
+  );
 } else {
-  console.error("Root element not found - make sure 'crypto-academy-root' exists in index.html");
+  console.error("Root mounting point not found");
 }
