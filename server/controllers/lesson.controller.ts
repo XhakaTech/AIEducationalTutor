@@ -5,51 +5,73 @@ export const getLessons = async (req: Request, res: Response) => {
   try {
     const lessons = await storage.getLessons();
     
+    if (!lessons || lessons.length === 0) {
+      console.log('No lessons found in database');
+      return res.json([]);
+    }
+    
+    console.log(`Found ${lessons.length} lessons in database`);
+    
     // Add progress information if user ID is provided
     if (req.query.userId) {
       const userId = parseInt(req.query.userId as string);
       const userProgress = await storage.getUserProgressByUserId(userId);
       
+      console.log(`Found ${userProgress.length} progress entries for user ${userId}`);
+      
       // Map through lessons and calculate progress based on completed subtopics
       const lessonsWithProgress = await Promise.all(lessons.map(async (lesson) => {
-        const lessonDetails = await storage.getLessonWithDetails(lesson.id);
-        let totalSubtopics = 0;
-        let completedSubtopics = 0;
-        
-        lessonDetails.topics.forEach((topic: any) => {
-          totalSubtopics += topic.subtopics.length;
-          topic.subtopics.forEach((subtopic: any) => {
-            const isCompleted = userProgress.some(
-              progress => progress.subtopic_id === subtopic.id && progress.completed
-            );
-            if (isCompleted) {
-              completedSubtopics++;
-            }
-          });
-        });
-        
-        const progress = totalSubtopics > 0 
-          ? Math.round((completedSubtopics / totalSubtopics) * 100) 
-          : 0;
-        
-        return { 
-          ...lesson, 
-          progress,
-          topics: lessonDetails.topics.map((topic: any) => ({ 
-            ...topic, 
-            subtopics: topic.subtopics.map((subtopic: any) => {
-              const subtopicProgress = userProgress.find(
-                progress => progress.subtopic_id === subtopic.id
-              );
-              return { 
-                ...subtopic, 
-                completed: subtopicProgress?.completed || false,
-                db_quiz_score: subtopicProgress?.db_quiz_score,
-                ai_quiz_score: subtopicProgress?.ai_quiz_score
-              };
-            })
-          })) 
-        };
+        try {
+          const lessonDetails = await storage.getLessonWithDetails(lesson.id);
+          let totalSubtopics = 0;
+          let completedSubtopics = 0;
+          
+          if (lessonDetails && lessonDetails.topics) {
+            lessonDetails.topics.forEach((topic: any) => {
+              if (topic.subtopics) {
+                totalSubtopics += topic.subtopics.length;
+                topic.subtopics.forEach((subtopic: any) => {
+                  const isCompleted = userProgress.some(
+                    progress => progress.subtopic_id === subtopic.id && progress.completed
+                  );
+                  if (isCompleted) {
+                    completedSubtopics++;
+                  }
+                });
+              }
+            });
+          }
+          
+          const progress = totalSubtopics > 0 
+            ? Math.round((completedSubtopics / totalSubtopics) * 100) 
+            : 0;
+          
+          return { 
+            ...lesson, 
+            progress,
+            topics: lessonDetails && lessonDetails.topics ? lessonDetails.topics.map((topic: any) => ({ 
+              ...topic, 
+              subtopics: topic.subtopics ? topic.subtopics.map((subtopic: any) => {
+                const subtopicProgress = userProgress.find(
+                  progress => progress.subtopic_id === subtopic.id
+                );
+                return { 
+                  ...subtopic, 
+                  completed: subtopicProgress?.completed || false,
+                  db_quiz_score: subtopicProgress?.db_quiz_score,
+                  ai_quiz_score: subtopicProgress?.ai_quiz_score
+                };
+              }) : []
+            })) : [] 
+          };
+        } catch (err) {
+          console.error(`Error processing lesson ${lesson.id}:`, err);
+          return {
+            ...lesson,
+            progress: 0,
+            topics: []
+          };
+        }
       }));
       
       return res.json(lessonsWithProgress);
@@ -58,7 +80,7 @@ export const getLessons = async (req: Request, res: Response) => {
     res.json(lessons);
   } catch (error) {
     console.error('Error fetching lessons:', error);
-    res.status(500).json({ message: 'Failed to fetch lessons' });
+    res.status(500).json({ message: 'Failed to fetch lessons', error: String(error) });
   }
 };
 

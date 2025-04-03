@@ -24,14 +24,14 @@ export default function Dashboard() {
   });
 
   // Calculate overall learning progress
-  const overallProgress = lessons.length > 0
+  const overallProgress = lessons && lessons.length > 0
     ? Math.round(
         lessons.reduce((sum, lesson) => sum + (lesson.progress || 0), 0) / lessons.length
       )
     : 0;
     
   // Count completed lessons
-  const completedLessons = lessons.filter(lesson => lesson.progress === 100).length;
+  const completedLessons = lessons ? lessons.filter(lesson => lesson.progress === 100).length : 0;
 
   const startLesson = (lessonId: number) => {
     navigate(`/lesson/${lessonId}`);
@@ -204,47 +204,61 @@ export default function Dashboard() {
             
             <TabsContent value="regular" className="mt-6">
               <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-                {lessons?.map((lesson: any) => (
-                  <Card 
-                    key={lesson.id} 
-                    className="overflow-hidden hover:shadow-lg transition duration-150 cursor-pointer relative" 
-                    onClick={() => startLesson(lesson.id)}
-                  >
-                    {lesson.progress === 100 && (
-                      <div className="absolute top-3 right-3 z-10">
-                        <Badge className="bg-green-500">
-                          <Check className="h-3 w-3 mr-1" />
-                          Completed
-                        </Badge>
-                      </div>
-                    )}
-                    <div className="h-40 bg-gradient-to-r from-primary to-primary/60 relative">
-                      <div className="absolute inset-0 flex items-center justify-center">
-                        <span className="text-white text-5xl opacity-30">{lesson.icon || <BookOpen className="h-12 w-12" />}</span>
-                      </div>
-                      <div className="absolute bottom-4 left-4 right-4">
-                        <h3 className="text-xl font-heading font-semibold text-white">{lesson.title}</h3>
-                      </div>
-                    </div>
-                    <CardContent className="p-4">
-                      <div className="flex justify-between items-center mb-3">
-                        <span className="text-sm text-muted-foreground">{lesson.topics?.length || 0} topics</span>
-                        <span className="text-sm font-medium text-primary">{lesson.progress || 0}% complete</span>
-                      </div>
-                      <Progress value={lesson.progress || 0} className="h-2.5" />
-                      <p className="mt-4 text-sm text-muted-foreground line-clamp-2">{lesson.description}</p>
-                      
-                      {lesson.final_test_result && (
-                        <div className="mt-3 pt-3 border-t border-gray-100">
-                          <div className="flex items-center">
-                            <Award className="h-4 w-4 text-yellow-500 mr-2" />
-                            <span className="text-sm font-medium">Final Score: {lesson.final_test_result.score}%</span>
-                          </div>
+                {lessons && lessons.length > 0 ? (
+                  lessons.map((lesson: any) => (
+                    <Card 
+                      key={lesson.id} 
+                      className="overflow-hidden hover:shadow-lg transition duration-150 cursor-pointer relative" 
+                      onClick={() => startLesson(lesson.id)}
+                    >
+                      {lesson.progress === 100 && (
+                        <div className="absolute top-3 right-3 z-10">
+                          <Badge className="bg-green-500">
+                            <Check className="h-3 w-3 mr-1" />
+                            Completed
+                          </Badge>
                         </div>
                       )}
-                    </CardContent>
-                  </Card>
-                ))}
+                      <div className="h-40 bg-gradient-to-r from-primary to-primary/60 relative">
+                        <div className="absolute inset-0 flex items-center justify-center">
+                          {lesson.icon ? (
+                            <span className="text-white text-5xl opacity-30">{lesson.icon}</span>
+                          ) : (
+                            <BookOpen className="h-12 w-12 text-white opacity-30" />
+                          )}
+                        </div>
+                        <div className="absolute bottom-4 left-4 right-4">
+                          <h3 className="text-xl font-heading font-semibold text-white">{lesson.title}</h3>
+                        </div>
+                      </div>
+                      <CardContent className="p-4">
+                        <div className="flex justify-between items-center mb-3">
+                          <span className="text-sm text-muted-foreground">{lesson.topics?.length || 0} topics</span>
+                          <span className="text-sm font-medium text-primary">{lesson.progress || 0}% complete</span>
+                        </div>
+                        <Progress value={lesson.progress || 0} className="h-2.5" />
+                        <p className="mt-4 text-sm text-muted-foreground line-clamp-2">{lesson.description}</p>
+                        
+                        {lesson.final_test_result && (
+                          <div className="mt-3 pt-3 border-t border-gray-100">
+                            <div className="flex items-center">
+                              <Award className="h-4 w-4 text-yellow-500 mr-2" />
+                              <span className="text-sm font-medium">Final Score: {lesson.final_test_result.score}%</span>
+                            </div>
+                          </div>
+                        )}
+                      </CardContent>
+                    </Card>
+                  ))
+                ) : (
+                  <div className="col-span-3 flex flex-col items-center justify-center py-12 text-center">
+                    <BookOpen className="h-12 w-12 text-muted-foreground mb-4" />
+                    <h3 className="text-lg font-medium">No courses available yet</h3>
+                    <p className="text-sm text-muted-foreground mb-6 max-w-md">
+                      It looks like the regular courses aren't loading properly. Try refreshing the page or check back later.
+                    </p>
+                  </div>
+                )}
               </div>
             </TabsContent>
             
