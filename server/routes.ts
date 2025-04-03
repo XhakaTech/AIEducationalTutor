@@ -154,7 +154,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
   
-  // Text-to-speech endpoint (simplified version without actual speech generation)
+  // Text-to-speech endpoint using Gemini for speech-friendly optimization
   app.post('/api/speak', async (req, res) => {
     const { text } = req.body;
     
@@ -163,14 +163,20 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
     
     try {
-      // Just log the text instead of generating actual speech
-      console.log('Text for narration:', text);
+      // Use Gemini to optimize the text for speech
+      const optimizedText = await GeminiService.generateSpeech(text);
       
-      // Return a simple success message
+      // Return the optimized text and default voice parameters
       res.json({ 
         success: true, 
         message: 'Text-to-speech request processed',
-        text
+        optimizedText,
+        voiceParams: {
+          rate: 0.9,
+          pitch: 1.0,
+          volume: 1.0,
+          preferredVoice: 'en-US'
+        }
       });
     } catch (error) {
       console.error('Error processing text:', error);

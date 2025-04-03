@@ -1,67 +1,32 @@
-
 import axios from 'axios';
 
-// Interface for speech synthesis parameters
-interface VoiceParams {
-  rate: number;
-  pitch: number;
-  volume: number;
-  preferredVoice?: string;
-}
-
-// Cache available voices
-let availableVoices: SpeechSynthesisVoice[] = [];
-
-// Initialize voices when speech synthesis is ready
-if (typeof window !== 'undefined' && window.speechSynthesis) {
-  const loadVoices = () => {
-    availableVoices = window.speechSynthesis.getVoices();
-  };
-  
-  // Load voices if already available
-  loadVoices();
-  
-  // Set up event listener for when voices change or load
-  window.speechSynthesis.onvoiceschanged = loadVoices;
-}
-
 /**
- * Find the best matching voice based on preferences
+ * Find the best available voice for speech synthesis
  */
-function findBestVoice(preferredVoice?: string): SpeechSynthesisVoice | undefined {
-  if (!availableVoices.length) {
-    availableVoices = window.speechSynthesis.getVoices();
+function findBestVoice(preferredLanguage = 'en-US') {
+  if (typeof window === 'undefined' || !window.speechSynthesis) {
+    return null;
   }
-  
-  // First try to find the preferred voice
-  if (preferredVoice) {
-    const exactMatch = availableVoices.find(v => v.name === preferredVoice);
-    if (exactMatch) return exactMatch;
-    
-    // Try to find a voice that contains the preferred name (partial match)
-    const partialMatch = availableVoices.find(v => v.name.includes(preferredVoice));
-    if (partialMatch) return partialMatch;
-  }
-  
-  // Preferred neural voices in order of preference
-  const preferredVoices = [
-    'Google US English', 'Google UK English Female', 
-    'Microsoft David - English (United States)',
-    'Microsoft Zira - English (United States)',
-    'en-US', 'en-GB'
-  ];
-  
-  // Try to find one of the preferred voices
-  for (const voiceName of preferredVoices) {
-    const voice = availableVoices.find(v => 
-      v.name.includes(voiceName) || 
-      v.lang.includes(voiceName)
-    );
-    if (voice) return voice;
-  }
-  
-  // Fall back to the first English voice
-  return availableVoices.find(v => v.lang.startsWith('en')) || availableVoices[0];
+
+  const voices = window.speechSynthesis.getVoices();
+
+  // First try to find a premium voice
+  const premiumVoice = voices.find(voice => 
+    voice.lang.includes(preferredLanguage) && 
+    (voice.name.includes('Premium') || voice.name.includes('Enhanced'))
+  );
+
+  if (premiumVoice) return premiumVoice;
+
+  // Otherwise, find any matching language voice
+  const languageVoice = voices.find(voice => 
+    voice.lang.includes(preferredLanguage)
+  );
+
+  if (languageVoice) return languageVoice;
+
+  // Fallback to first available voice
+  return voices[0] || null;
 }
 
 /**
@@ -73,32 +38,46 @@ export async function speak(text: string): Promise<void> {
     if (window.speechSynthesis.speaking) {
       window.speechSynthesis.cancel();
     }
-    
+
     // Get optimized text and voice parameters from the server
     const response = await axios.post('/api/speak', { text });
     const { optimizedText, voiceParams } = response.data;
-    
+
     // Create speech utterance with improved parameters
     const utterance = new SpeechSynthesisUtterance(optimizedText || text);
-    
+
     // Apply voice parameters
     if (voiceParams) {
       utterance.rate = voiceParams.rate;
       utterance.pitch = voiceParams.pitch;
       utterance.volume = voiceParams.volume;
     } else {
-      // Default parameters for better quality
-      utterance.rate = 0.9;  // Slightly slower for better clarity
+      // Default parameters for better clarity
+      utterance.rate = 0.9;
       utterance.pitch = 1.0;
       utterance.volume = 1.0;
     }
-    
+
+    // Ensure voices are loaded
+    let voices = window.speechSynthesis.getVoices();
+    if (voices.length === 0) {
+      // Wait for voices to load
+      await new Promise<void>(resolve => {
+        window.speechSynthesis.onvoiceschanged = () => {
+          resolve();
+        };
+        // Fallback if event doesn't fire
+        setTimeout(resolve, 1000);
+      });
+      voices = window.speechSynthesis.getVoices();
+    }
+
     // Select the best available voice
     utterance.voice = findBestVoice(voiceParams?.preferredVoice);
-    
+
     // Speak the text
     window.speechSynthesis.speak(utterance);
-    
+
     return new Promise((resolve) => {
       utterance.onend = () => resolve();
       utterance.onerror = () => resolve();
