@@ -1,0 +1,348 @@
+Full Functional Document – AI Educational Tutor
+Version: MVP v1.0
+Date: April 3, 2025
+
+1. General Description
+Web-based educational platform powered by Gemini AI, which:
+
+Generates and narrates lesson content.
+
+Uses smart multimedia resources stored in a database for support.
+
+Guides the user through a fixed structure of topics and subtopics.
+
+Enables free chat with the AI before each evaluation.
+
+Manages topic-based quizzes and a final test, and automatically grades the results.
+
+2. Lesson Structure
+2.1 Lesson
+Each lesson contains:
+
+4 topics.
+
+Each topic includes 4 subtopics.
+
+Fixed sequential order.
+
+2.2 Subtopic
+Generated dynamically by Gemini.
+
+Narrated aloud using the speak(text) function.
+
+Supports optional multimedia resources.
+
+User interaction is limited to buttons:
+
+“Understood”
+
+“Explain it more simply”
+
+“Show resource”
+
+2.3 Multimedia Resources (per subtopic)
+Types: text, image, video, audio.
+
+Stored with semantic metadata to help the AI decide when and how to use them.
+
+Key Field	Function
+description	Explains what the resource contains
+purpose	Justifies when and why to use the resource
+content_tags	Links resource to key educational concepts
+recommended_when	Describes when the resource is useful (e.g. "if user fails quiz")
+3. AI Interaction: Gemini
+During subtopics
+The AI:
+
+Generates the educational content.
+
+Reads the content aloud with speak(text).
+
+Displays support resources when appropriate.
+
+User interaction is limited to buttons.
+
+Before each quiz or final test
+Free chat with Gemini is enabled
+
+Allows the user to:
+
+Ask open-ended questions.
+
+Request summaries or extra examples.
+
+When the user says "Ready", the quiz begins.
+
+4. Evaluation
+4.1 Topic Quiz
+Triggered after completing all 4 subtopics in a topic.
+
+Launched via start_quiz(topic_id).
+
+Questions pulled from database.
+
+Results saved and sent to the AI.
+
+4.2 Final Lesson Test
+Activated after all topics are completed.
+
+Managed via start_final_test(lesson_id).
+
+4.3 Feedback & Grading
+AI uses:
+
+Quiz/test results.
+
+Response time and patterns.
+
+Generates:
+
+generate_feedback()
+
+calculate_final_score()
+
+mark_lesson_complete()
+
+5. Special Function Calling Features
+Function Name	Purpose
+next_subtopic()	Advances to the next subtopic
+show_resource(resource_id)	Displays a specific resource
+speak(text)	Narrates AI-generated content
+simplify_explanation()	Explains content in simpler terms
+repeat_last_explanation()	Repeats the last generated explanation
+start_quiz(topic_id)	Launches the topic quiz
+start_final_test(lesson_id)	Launches the final test
+send_quiz_result(...)	Sends quiz result to the AI
+generate_feedback(...)	Provides personalized feedback
+calculate_final_score(...)	Computes the final score
+open_chat_mode()	Opens free chat with AI before quizzes or final test
+6. Database Structure – Summary
+Lessons & Topics
+lessons → contain topics → contain subtopics
+
+Resources
+resources linked to subtopics
+
+Fields: type, url, description, purpose, content_tags, recommended_when
+
+Quizzes
+quizzes per topic
+
+quiz_questions with options, answer, explanation
+
+Final Test
+final_tests and final_test_questions per lesson
+
+User Progress
+user_progress:
+
+Completed subtopics
+
+Topic quiz results
+
+Final score
+
+AI feedback
+
+7. User Flow Overview
+User selects a lesson → starts the first subtopic.
+
+Gemini generates and narrates the content.
+
+The user advances with buttons.
+
+After completing the 4 subtopics:
+
+Free chat with the AI is enabled.
+
+Once ready, the topic quiz begins.
+
+After all topics are completed:
+
+Another chat session opens before the final test.
+
+Gemini processes the results, marks the lesson as complete, and provides final feedback.
+
+Let me know if you'd like this as a PDF, DOCX, ER Diagram, or if you'd like a JSON schema to use in your backend setup.
+
+
+
+
+
+
+
+Dijiste:
+Bueno, la única diferencia que hay que hacer es que los cuices son dos en cada subtema. Uno que se genera desde la base de datos y otro que genera Gemini en el momento, sin repetir preguntas de la base de datos, y ocupa FunctionCalling para presentarlo en la misma manera. Entonces, es un quiz generado por nosotros desde la base de datos, otro quiz generado por IA. Además, es importante recalcar, muy muy muy importante, que el contenido de la app es generado dinámicamente desde la base de datos, con la misma información que usa Gemini para dar las lecciones. In elgnih final documentation plz
+ChatGPT dijo:
+Absolutely! Here's the Final Functional and Technical Documentation in English, fully updated to include:
+
+Two quizzes per subtopic:
+
+One pulled from the database.
+
+One generated on the fly by Gemini, using Function Calling, without repeating the DB questions.
+
+Strong emphasis that all content is dynamically generated from the database, including the data that Gemini uses to deliver lessons.
+
+FINAL FUNCTIONAL + TECHNICAL DOCUMENTATION
+Project: AI Educational Tutor
+Version: MVP v1.0
+Date: April 3, 2025
+
+1. General Description
+A web-based educational platform powered by Gemini AI, where:
+
+All educational content is dynamically generated from the database, including structured lessons, topics, subtopics, and resources.
+
+Gemini acts as the primary tutor, narrating and guiding users through content generated on the fly.
+
+Each subtopic includes two evaluations:
+
+A quiz from the database.
+
+A quiz generated live by Gemini via Function Calling, using the same source data but without duplicating questions.
+
+Chat with Gemini is allowed before every quiz and final test.
+
+A final lesson test concludes the experience with a calculated score and personalized feedback.
+
+2. Lesson Structure
+2.1 Lesson
+Structure:
+
+4 topics per lesson.
+
+Each topic contains 4 subtopics.
+
+Fetched dynamically via backend API and shared with both:
+
+The frontend for visual rendering.
+
+Gemini for lesson generation and narration.
+
+2.2 Subtopic
+Dynamic data retrieved from DB: title, objective, key concepts, and related resources.
+
+Gemini generates a full explanation based on this input and narrates it with speak(text).
+
+Users interact through buttons:
+
+“Understood”
+
+“Explain more simply”
+
+“Show example/resource”
+
+3. Interactive Resources
+Field	Purpose
+type	text, image, video, audio
+description	What the resource contains
+purpose	When the resource should be used (e.g., “to reinforce visuals”)
+content_tags	Topics or keywords associated
+recommended_when	Situational cue for AI (e.g., “if user gets stuck”)
+AI uses semantic tags and conditions to decide when to surface each resource dynamically.
+
+4. AI (Gemini) Role and Behavior
+Gemini Responsibilities
+Generates all subtopic content using structured input.
+
+Reads the content aloud using speak(text).
+
+Decides when to present each resource.
+
+Opens a free-form chat before every quiz and test.
+
+Generates a live quiz per subtopic using:
+
+The subtopic’s structured data.
+
+Avoiding duplication of questions from the DB quiz.
+
+5. Evaluation System
+5.1 Per Subtopic
+Each subtopic includes two quizzes:
+
+Quiz Type	Source	Method	Function Call
+DB Quiz	Database	Pre-written questions from backend	start_db_quiz()
+AI Quiz	Gemini (live)	Generated at runtime, unique	start_ai_quiz()
+After both quizzes, the results are sent to Gemini for analysis and feedback using:
+
+send_quiz_result(user_id, subtopic_id, answers[])
+
+generate_quiz_feedback(...)
+
+5.2 Per Topic
+After 4 subtopics are completed:
+
+Gemini opens chat mode.
+
+Then launches a topic-level quiz using start_quiz(topic_id).
+
+5.3 Final Test
+Triggered after completing all topics in a lesson.
+
+Uses questions from database.
+
+Gemini offers final feedback, computed from:
+
+Quiz results.
+
+Final test.
+
+Behavior metrics.
+
+6. Function Calling Map
+Function Name	Description
+start_subtopic(id)	Starts content generation for a specific subtopic
+speak(text)	Narrates text aloud using Gemini
+show_resource(resource_id)	Displays a specific resource from DB
+simplify_explanation()	Sends simplified explanation
+repeat_last_explanation()	Repeats last AI-generated content
+start_db_quiz(subtopic_id)	Starts database-based quiz
+start_ai_quiz(subtopic_id)	Starts Gemini-generated quiz
+open_chat_mode()	Opens chat with Gemini (before quizzes/final test only)
+send_quiz_result(...)	Sends user answers and results
+generate_feedback(...)	Returns personalized lesson feedback
+calculate_final_score(...)	Computes final lesson score
+mark_lesson_complete(...)	Flags the lesson as finished
+7. Data-Driven Architecture
+Every lesson, topic, subtopic, and resource is pulled dynamically from the backend, and:
+
+The frontend uses the same structure as Gemini.
+
+The AI always receives:
+
+Subtopic title
+
+Objective
+
+Key tags
+
+Associated resources
+
+This enables both the UI and Gemini to stay in perfect sync for lesson delivery, evaluations, and feedback.
+
+8. User Experience Flow
+User selects a lesson → backend sends full lesson structure to UI and Gemini.
+
+Gemini starts the first subtopic: generates, explains, and narrates.
+
+After subtopic:
+
+First quiz: from DB.
+
+Second quiz: generated by Gemini.
+
+At the end of each topic:
+
+Gemini opens chat → user asks questions.
+
+Gemini starts a topic-level quiz.
+
+At end of the lesson:
+
+Final chat with Gemini.
+
+Final test.
+
+Gemini computes score and gives personalized feedback.
