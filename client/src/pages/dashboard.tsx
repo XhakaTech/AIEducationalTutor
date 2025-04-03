@@ -1,5 +1,4 @@
 import { useQuery } from "@tanstack/react-query";
-import { useLocation } from "wouter";
 import { Card, CardContent } from "@/components/ui/card";
 import { Progress } from "@/components/ui/progress";
 
@@ -8,14 +7,17 @@ interface DashboardProps {
 }
 
 export default function Dashboard({ user }: DashboardProps) {
-  const [_, setLocation] = useLocation();
-
-  const { data: lessons, isLoading, error } = useQuery({
+  const { data: lessons = [], isLoading, error } = useQuery<any[]>({
     queryKey: [`/api/lessons?userId=${user.id}`],
   });
 
   const startLesson = (lessonId: number) => {
-    setLocation(`/lesson/${lessonId}`);
+    // Use direct navigation with our custom function or fallback to traditional navigation
+    if ((window as any).navigate) {
+      (window as any).navigate(`/lesson/${lessonId}`);
+    } else {
+      window.location.href = `/lesson/${lessonId}`;
+    }
   };
 
   if (isLoading) {

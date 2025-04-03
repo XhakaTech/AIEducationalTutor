@@ -1,7 +1,6 @@
 import { useState, useEffect } from "react";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
-import { useLocation } from "wouter";
 import { geminiClient } from "@/main";
 
 interface FinalResultsProps {
@@ -13,9 +12,17 @@ export default function FinalResults({
   score,
   lessonTitle
 }: FinalResultsProps) {
-  const [_, setLocation] = useLocation();
   const [feedback, setFeedback] = useState<string>("");
   const [isLoading, setIsLoading] = useState(true);
+  
+  // Helper function to get grade
+  const getGrade = (score: number): string => {
+    if (score >= 90) return 'A';
+    if (score >= 80) return 'B';
+    if (score >= 70) return 'C';
+    if (score >= 60) return 'D';
+    return 'F';
+  };
   
   const isPassing = score >= 70;
   const grade = getGrade(score);
@@ -42,16 +49,13 @@ export default function FinalResults({
     generateFeedback();
   }, [score, lessonTitle, isPassing]);
   
-  const getGrade = (score: number): string => {
-    if (score >= 90) return 'A';
-    if (score >= 80) return 'B';
-    if (score >= 70) return 'C';
-    if (score >= 60) return 'D';
-    return 'F';
-  };
-  
   const returnToDashboard = () => {
-    setLocation('/');
+    // Use direct navigation with our custom function or fallback to traditional navigation
+    if ((window as any).navigate) {
+      (window as any).navigate('/');
+    } else {
+      window.location.href = '/';
+    }
   };
   
   return (
