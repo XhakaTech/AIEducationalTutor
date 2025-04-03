@@ -1,5 +1,5 @@
 import React from "react";
-import ReactDOM from "react-dom";
+import { createRoot } from "react-dom/client";
 import App from "./App";
 import "./index.css";
 import { createGeminiClient } from "./services/gemini";
@@ -10,10 +10,12 @@ export const geminiClient = createGeminiClient();
 // Expose the speak function globally for Gemini function calling
 (window as any).speak = geminiClient.speak;
 
-// Use ReactDOM.render instead of createRoot for now to avoid conflicts
-ReactDOM.render(
-  <React.StrictMode>
-    <App />
-  </React.StrictMode>,
-  document.getElementById("root")
-);
+const rootElement = document.getElementById("root");
+if (rootElement) {
+  const root = createRoot(rootElement);
+  root.render(
+    <React.StrictMode>
+      <App />
+    </React.StrictMode>
+  );
+}

@@ -33,38 +33,105 @@ type Message = {
 export async function generateContent(
   prompt: string,
   systemPrompt?: string,
+  formatAsJson: boolean = false
 ): Promise<string> {
-  try {
-    const messages: Message[] = [];
+  const url = 'https://generativelanguage.googleapis.com/v1beta/models/gemini-pro:generateContent';
 
-    // Add system prompt if provided
+  try {
+    const apiKey = process.env.GEMINI_API_KEY;
+    if (!apiKey) {
+      throw new Error('GEMINI_API_KEY environment variable is not set');
+    }
+
+    // If we're expecting JSON, add specific formatting instructions
+    if (formatAsJson) {
+      prompt = `${prompt}\n\nIMPORTANT: Return ONLY valid JSON in your response. Do not include markdown formatting, code blocks, or any explanatory text. The response should contain nothing but the JSON object.`;
+    }
+
+    const requestBody = {
+      contents: [
+        {
+          parts: [{ text: prompt }]
+        }
+      ],
+      generationConfig: {
+        temperature: formatAsJson ? 0.1 : 0.7, // Lower temperature for JSON to be more precise
+        topK: 40,
+        topP: 0.95,
+        maxOutputTokens: 8192,
+      },
+      safetySettings: [
+        {
+          category: 'HARM_CATEGORY_HARASSMENT',
+          threshold: 'BLOCK_MEDIUM_AND_ABOVE'
+        },
+        {
+          category: 'HARM_CATEGORY_HATE_SPEECH',
+          threshold: 'BLOCK_MEDIUM_AND_ABOVE'
+        },
+        {
+          category: 'HARM_CATEGORY_SEXUALLY_EXPLICIT',
+          threshold: 'BLOCK_MEDIUM_AND_ABOVE'
+        },
+        {
+          category: 'HARM_CATEGORY_DANGEROUS_CONTENT',
+          threshold: 'BLOCK_MEDIUM_AND_ABOVE'
+        }
+      ]
+    };
+
     if (systemPrompt) {
-      messages.push({
-        role: "system",
-        content: systemPrompt,
+      requestBody.contents[0].role = 'user';
+      requestBody.contents.unshift({
+        role: 'system',
+        parts: [{ text: systemPrompt }]
       });
     }
 
-    // Add the user prompt
-    messages.push({
-      role: "user",
-      content: prompt,
+    const response = await fetch(`${url}?key=${apiKey}`, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json'
+      },
+      body: JSON.stringify(requestBody)
     });
 
-    // Generate content using the chat method
-    const result = await model.generateContent({
-      contents: messages.map((msg) => ({
-        role: msg.role === "model" ? "model" : "user", // Gemini API only supports user and model roles
-        parts: [{ text: msg.content }],
-      })),
-    });
+    if (!response.ok) {
+      const errorBody = await response.text();
+      throw new Error(`Gemini API error: ${response.status} ${errorBody}`);
+    }
 
-    // Extract and return the response text
-    const response = result.response;
-    return response.text();
+    const data = await response.json();
+
+    // Extract the generated text from the response
+    let generatedContent = data.candidates?.[0]?.content?.parts?.[0]?.text || '';
+
+    // If this is JSON content, clean it up
+    if (formatAsJson) {
+      // Remove markdown code blocks if present
+      if (generatedContent.includes("```json")) {
+        generatedContent = generatedContent.replace(/```json\s*/g, "");
+        generatedContent = generatedContent.replace(/```\s*$/g, "");
+      }
+
+      // Remove any other markdown formatting
+      generatedContent = generatedContent.replace(/```/g, "");
+
+      // Attempt to parse and re-stringify to validate and format
+      try {
+        const parsed = JSON.parse(generatedContent);
+        return JSON.stringify(parsed);
+      } catch (error) {
+        console.error('Error parsing JSON from Gemini:', error);
+        console.error('Raw response:', generatedContent);
+        throw new Error('Generated content is not valid JSON');
+      }
+    }
+
+    return generatedContent;
   } catch (error) {
-    console.error("Error generating content with Gemini:", error);
-    throw new Error("Failed to generate content with Gemini API");
+    console.error('Error calling Gemini API:', error);
+    throw error;
   }
 }
 
@@ -130,15 +197,9 @@ export async function generateQuiz(
       Return ONLY the JSON object without any additional text.
     `;
 
-    const response = await generateContent(prompt);
+    const response = await generateContent(prompt, undefined, true); // Request JSON response
 
-    // Extract JSON from response (in case the model returns extra text)
-    const jsonMatch = response.match(/\{[\s\S]*\}/);
-    if (jsonMatch) {
-      return JSON.parse(jsonMatch[0]);
-    }
-
-    throw new Error("Failed to parse quiz JSON from Gemini response");
+    return response;
   } catch (error) {
     console.error("Error generating quiz with Gemini:", error);
     throw new Error("Failed to generate quiz with Gemini API");
@@ -258,15 +319,9 @@ export async function calculateFinalScore(
       Return ONLY the JSON object without any additional text.
     `;
 
-    const response = await generateContent(prompt);
+    const response = await generateContent(prompt, undefined, true); // Request JSON response
 
-    // Extract JSON from response
-    const jsonMatch = response.match(/\{[\s\S]*\}/);
-    if (jsonMatch) {
-      return JSON.parse(jsonMatch[0]);
-    }
-
-    throw new Error("Failed to parse final score JSON from Gemini response");
+    return response;
   } catch (error) {
     console.error("Error calculating final score with Gemini:", error);
     throw new Error("Failed to calculate final score with Gemini API");
@@ -280,9 +335,9 @@ export async function generateSpeech(text: string): Promise<string> {
   try {
     const prompt = `
       Optimize the following text for text-to-speech processing:
-      
+
       ${text}
-      
+
       Please:
       1. Break long sentences into shorter, clearer ones
       2. Remove any special characters that might cause speech issues

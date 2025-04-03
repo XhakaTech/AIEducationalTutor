@@ -253,12 +253,14 @@ export async function registerRoutes(app: Express): Promise<Server> {
         Include 2 topics, each with 2 subtopics. Each subtopic should have 2 resources and 3 quiz questions.
         The content should be educational, accurate, and appropriate for the ${difficulty} level.
         All content must be in well-formatted HTML.
+        
+        IMPORTANT: Provide ONLY valid JSON in your response, nothing else. No markdown formatting, no code blocks.
       `;
       
-      const response = await GeminiService.generateContent(lessonTemplate);
+      const response = await GeminiService.generateContent(lessonTemplate, undefined, true);
       
       try {
-        // Parse the JSON response
+        // Response should already be cleaned JSON from the service
         const lessonData = JSON.parse(response);
         
         // Add additional fields
@@ -273,6 +275,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
         res.json(customLesson);
       } catch (parseError) {
         console.error('Error parsing Gemini response:', parseError);
+        console.error('Raw response:', response);
         res.status(500).json({ message: 'Failed to create custom lesson. Invalid response format.' });
       }
     } catch (error) {
