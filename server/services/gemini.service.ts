@@ -27,6 +27,17 @@ type Message = {
   content: string;
 };
 
+interface QuizQuestion {
+  question: string;
+  options: string[];
+  answer: number;
+  explanation: string;
+}
+
+interface QuizResponse {
+  questions: QuizQuestion[];
+}
+
 /**
  * Generate content using Gemini based on the provided prompt
  */
@@ -48,6 +59,11 @@ export async function generateContent(
     // If we're expecting JSON, add specific formatting instructions
     if (formatAsJson) {
       prompt = `${prompt}\n\nIMPORTANT: Return ONLY valid JSON in your response. Do not include markdown formatting, code blocks, or any explanatory text. The response should contain nothing but the JSON object.`;
+    } else {
+      // For HTML content, request clean HTML without markdown code blocks
+      if (prompt.toLowerCase().includes('html')) {
+        prompt = `${prompt}\n\nIMPORTANT: When returning HTML, do not wrap it in markdown code blocks or add language specifiers. Return the clean HTML directly.`;
+      }
     }
 
     const requestBody = {
@@ -107,7 +123,7 @@ export async function generateContent(
     let generatedContent =
       data.candidates?.[0]?.content?.parts?.[0]?.text || "";
 
-    // If this is JSON content, clean it up
+    // Clean up the content based on the type
     if (formatAsJson) {
       // Remove markdown code blocks if present
       let cleanedContent = generatedContent.trim();
@@ -137,11 +153,6 @@ export async function generateContent(
       // Final cleanup of any remaining markdown or non-JSON content
       cleanedContent = cleanedContent.replace(/```/g, "").trim();
 
-      console.log(
-        "Cleaned JSON content from Gemini (first 100 chars):",
-        cleanedContent.substring(0, 100),
-      );
-
       // Attempt to parse and re-stringify to validate and format
       try {
         const parsed = JSON.parse(cleanedContent);
@@ -154,9 +165,17 @@ export async function generateContent(
         );
         throw new Error("Generated content is not valid JSON");
       }
+    } else {
+      // For non-JSON content, clean up any markdown code blocks
+      let cleanedContent = generatedContent.trim();
+      
+      // Remove any markdown code block markers and language specifiers
+      const codeBlockRegex = /```(?:html|javascript|css|json)?\n([\s\S]*?)```/g;
+      cleanedContent = cleanedContent.replace(codeBlockRegex, '$1').trim();
+      
+      return cleanedContent;
     }
 
-    return generatedContent;
   } catch (error) {
     console.error("Error calling Gemini API:", error);
     throw error;
@@ -196,7 +215,7 @@ export async function generateQuiz(
   subtopicObjective: string,
   keyConcepts: string[],
   existingQuestions: string[],
-): Promise<any> {
+): Promise<QuizResponse> {
   try {
     const prompt = `
       You are an educational quiz generator. Create a quiz for the subtopic "${subtopicTitle}" 
@@ -204,30 +223,72 @@ export async function generateQuiz(
 
       The key concepts are: ${keyConcepts.join(", ")}.
 
-      Please generate 5 multiple-choice questions. Each question should have 4 options with exactly one correct answer.
-      The questions should be challenging but fair, and directly related to the key concepts.
+      Generate 5 multiple-choice questions that test understanding of these concepts.
+      Each question must:
+      1. Be clear and unambiguous
+      2. Have exactly 4 options
+      3. Have exactly one correct answer
+      4. Include a clear explanation for the correct answer
+      5. Be directly related to the key concepts
+      6. Not repeat any of these existing questions: ${existingQuestions.join(", ")}
 
-      DO NOT repeat these existing questions: ${existingQuestions.join(", ")}
-
-      Format your response as a JSON object with the following structure:
+      Format your response EXACTLY as this JSON structure:
       {
         "questions": [
           {
-            "question": "Question text here?",
-            "options": ["Option A", "Option B", "Option C", "Option D"],
-            "answer": 0, // Index of the correct answer (0-3)
-            "explanation": "Explanation of the correct answer"
-          },
-          // More questions...
+            "question": "Clear, complete question ending with a question mark?",
+            "options": [
+              "Clear option A",
+              "Clear option B",
+              "Clear option C",
+              "Clear option D"
+            ],
+            "answer": 0,
+            "explanation": "Clear explanation why option A is correct, referencing the concept being tested"
+          }
         ]
       }
 
-      Return ONLY the JSON object without any additional text.
+      IMPORTANT RULES:
+      - Each question must end with a question mark
+      - Options must be complete phrases/sentences
+      - No placeholder text like "Option A" - make all options meaningful
+      - Answer must be a number 0-3 corresponding to the correct option's index
+      - Explanation must clearly justify why the answer is correct
+      - Return ONLY valid JSON without any additional text or markdown
     `;
 
     const response = await generateContent(prompt, undefined, true); // Request JSON response
 
-    return response;
+    // Validate response structure
+    try {
+      const parsed = JSON.parse(response) as QuizResponse;
+      if (!parsed.questions || !Array.isArray(parsed.questions)) {
+        throw new Error("Invalid quiz format: missing questions array");
+      }
+      
+      // Validate each question
+      parsed.questions = parsed.questions.map((q: QuizQuestion) => {
+        if (!q.question?.endsWith("?")) {
+          q.question = q.question + "?";
+        }
+        if (!Array.isArray(q.options) || q.options.length !== 4) {
+          throw new Error("Invalid quiz format: each question must have exactly 4 options");
+        }
+        if (typeof q.answer !== "number" || q.answer < 0 || q.answer > 3) {
+          throw new Error("Invalid quiz format: answer must be a number 0-3");
+        }
+        if (!q.explanation) {
+          throw new Error("Invalid quiz format: missing explanation");
+        }
+        return q;
+      });
+      
+      return parsed;
+    } catch (error) {
+      console.error("Error validating quiz format:", error);
+      throw new Error("Failed to generate valid quiz format");
+    }
   } catch (error) {
     console.error("Error generating quiz with Gemini:", error);
     throw new Error("Failed to generate quiz with Gemini API");

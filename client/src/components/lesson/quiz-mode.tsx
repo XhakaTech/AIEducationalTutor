@@ -4,6 +4,8 @@ import { Button } from "@/components/ui/button";
 import { geminiClient } from "@/main";
 import { apiRequest } from "@/lib/queryClient";
 import { QuizType } from "@/pages/lesson";
+import { Loader2 } from "lucide-react";
+import { UseQueryOptions } from '@tanstack/react-query';
 
 interface QuizModeProps {
   subtopicId: number;
@@ -22,6 +24,17 @@ interface QuizQuestion {
   explanation: string;
 }
 
+interface Quiz {
+  questions: QuizQuestion[];
+}
+
+interface SubtopicDetails {
+  id: number;
+  title: string;
+  objective: string;
+  key_concepts: string[];
+}
+
 export default function QuizMode({
   subtopicId,
   quizType,
@@ -32,66 +45,119 @@ export default function QuizMode({
 }: QuizModeProps) {
   const [currentQuestionIndex, setCurrentQuestionIndex] = useState(0);
   const [selectedAnswer, setSelectedAnswer] = useState<number | null>(null);
-  const [userAnswers, setUserAnswers] = useState<number[]>([]);
-  const [quiz, setQuiz] = useState<{ questions: QuizQuestion[] }>({ questions: [] });
+  const [userAnswers, setUserAnswers] = useState<(number | null)[]>([]);
+  const [quiz, setQuiz] = useState<Quiz>({ questions: [] });
   const [isLoading, setIsLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
+  const [showResults, setShowResults] = useState(false);
+  const [quizScore, setQuizScore] = useState(0);
   
-  // Fetch DB quiz questions
-  const { data: dbQuiz, isLoading: isDbQuizLoading } = useQuery({
+  // Fetch DB quiz questions with caching
+  const { data: dbQuiz, isLoading: isDbQuizLoading } = useQuery<Quiz>({
     queryKey: [`/api/quiz/subtopic/${subtopicId}`],
     enabled: quizType === 'db' && !!subtopicId,
-  });
+    staleTime: 300000, // 5 minutes
+    gcTime: 1800000, // 30 minutes
+  } as UseQueryOptions<Quiz>);
   
-  // For AI quiz, get subtopic details to generate questions
-  const { data: subtopicDetails } = useQuery({
+  // For AI quiz, get subtopic details
+  const { data: subtopicDetails } = useQuery<SubtopicDetails>({
     queryKey: [`/api/subtopics/${subtopicId}`],
-    enabled: quizType === 'ai' && !!subtopicId,
-  });
+    enabled: (quizType === 'ai' || (dbQuiz && (!dbQuiz.questions || dbQuiz.questions.length === 0))) && !!subtopicId,
+    staleTime: 300000,
+    gcTime: 1800000,
+  } as UseQueryOptions<SubtopicDetails>);
+
+  const resetQuiz = () => {
+    setCurrentQuestionIndex(0);
+    setSelectedAnswer(null);
+    setUserAnswers([]);
+    setShowResults(false);
+    setQuizScore(0);
+    initQuiz();
+  };
+  
+  const initQuiz = async () => {
+    setIsLoading(true);
+    setError(null);
+    
+    try {
+      // If DB quiz is available and we're in DB quiz mode, use it
+      if (quizType === 'db' && dbQuiz && dbQuiz.questions && dbQuiz.questions.length > 0) {
+        setQuiz({ ...dbQuiz }); // Create a new object to avoid reference issues
+        setUserAnswers(Array(dbQuiz.questions.length).fill(null));
+      } 
+      // Otherwise generate AI quiz
+      else if (subtopicDetails) {
+        // Generate AI quiz
+        const existingQuestions = dbQuiz?.questions?.map((q: QuizQuestion) => q.question) || [];
+        const generatedQuiz = await geminiClient.generateQuiz(
+          subtopicDetails.title,
+          subtopicDetails.objective,
+          subtopicDetails.key_concepts,
+          existingQuestions
+        ) as Quiz;
+        
+        // Validate generated quiz
+        if (!generatedQuiz.questions || !Array.isArray(generatedQuiz.questions) || generatedQuiz.questions.length === 0) {
+          throw new Error('Failed to generate valid quiz questions');
+        }
+        
+        // Ensure all questions have required fields
+        const validQuestions = generatedQuiz.questions.every((q: QuizQuestion) => 
+          q.question && 
+          Array.isArray(q.options) && 
+          q.options.length === 4 &&
+          typeof q.answer === 'number' &&
+          q.answer >= 0 && 
+          q.answer <= 3 &&
+          q.explanation
+        );
+        
+        if (!validQuestions) {
+          throw new Error('Generated quiz questions are not in the correct format');
+        }
+        
+        setQuiz(generatedQuiz);
+        setUserAnswers(Array(generatedQuiz.questions.length).fill(null));
+      } else {
+        throw new Error('Could not load quiz questions or generate new ones');
+      }
+    } catch (error) {
+      console.error('Error initializing quiz:', error);
+      setError(error instanceof Error ? error.message : 'An error occurred while preparing the quiz');
+      // Set a fallback question
+      setQuiz({
+        questions: [
+          {
+            question: `What is the main focus of ${subtopicDetails?.title || 'this topic'}?`,
+            options: [
+              "Understanding core concepts",
+              "Memorizing definitions",
+              "Taking notes",
+              "Reading documentation"
+            ],
+            answer: 0,
+            explanation: "Understanding core concepts is essential for mastering any topic."
+          }
+        ]
+      });
+      setUserAnswers([null]);
+    } finally {
+      setIsLoading(false);
+    }
+  };
   
   // Initialize quiz
   useEffect(() => {
-    const initQuiz = async () => {
-      setIsLoading(true);
-      
-      if (quizType === 'db' && dbQuiz) {
-        setQuiz(dbQuiz);
-        setUserAnswers(Array(dbQuiz.questions.length).fill(null));
-        setIsLoading(false);
-      } else if (quizType === 'ai' && subtopicDetails) {
-        try {
-          // Generate AI quiz
-          const existingQuestions = dbQuiz?.questions?.map((q: QuizQuestion) => q.question) || [];
-          const generatedQuiz = await geminiClient.generateQuiz(
-            subtopicDetails.title,
-            subtopicDetails.objective,
-            subtopicDetails.key_concepts,
-            existingQuestions
-          );
-          
-          setQuiz(generatedQuiz);
-          setUserAnswers(Array(generatedQuiz.questions.length).fill(null));
-        } catch (error) {
-          console.error('Error generating AI quiz:', error);
-          // Fallback
-          setQuiz({
-            questions: [
-              {
-                question: `What is the main focus of ${subtopicDetails.title}?`,
-                options: ["Option A", "Option B", "Option C", "Option D"],
-                answer: 0,
-                explanation: "This is the correct answer based on the content."
-              }
-            ]
-          });
-          setUserAnswers([null]);
-        } finally {
-          setIsLoading(false);
-        }
+    if (!isDbQuizLoading) {
+      // If DB quiz is not available, switch to AI quiz
+      if (quizType === 'db' && dbQuiz && (!dbQuiz.questions || dbQuiz.questions.length === 0)) {
+        console.log('No DB quiz available, switching to AI quiz');
       }
-    };
-    
-    initQuiz();
-  }, [quizType, dbQuiz, subtopicDetails]);
+      initQuiz();
+    }
+  }, [quizType, dbQuiz, subtopicDetails, isDbQuizLoading]);
   
   const getCurrentQuestion = () => {
     if (!quiz || !quiz.questions || quiz.questions.length === 0) {
@@ -130,6 +196,8 @@ export default function QuizMode({
         }
       }
       const score = Math.round((correct / quiz.questions.length) * 100);
+      setQuizScore(score);
+      setShowResults(true);
       
       // Submit quiz results
       try {
@@ -137,29 +205,88 @@ export default function QuizMode({
           userId,
           subtopicId,
           score,
-          quizType
+          quizType,
+          answers: userAnswers.map(a => a ?? -1), // Convert null to -1 for API
+          questions: quiz.questions
         });
       } catch (error) {
         console.error('Error submitting quiz results:', error);
       }
       
-      // Notify parent component
-      onComplete(score);
+      // Only notify parent if score is passing
+      if (score >= 70) {
+        onComplete(score);
+      }
     } else {
       setCurrentQuestionIndex(prev => prev + 1);
       setSelectedAnswer(userAnswers[currentQuestionIndex + 1]);
     }
   };
   
-  const question = getCurrentQuestion();
-  
-  if (isLoading || isDbQuizLoading || !question) {
+  if (isLoading || isDbQuizLoading) {
     return (
       <div className="h-full flex items-center justify-center">
         <div className="text-center">
-          <div className="h-16 w-16 mx-auto border-t-4 border-primary-600 border-solid rounded-full animate-spin"></div>
-          <p className="mt-4 text-neutral-600">Loading quiz...</p>
+          <Loader2 className="h-16 w-16 mx-auto animate-spin text-primary" />
+          <p className="mt-4 text-muted-foreground">
+            {quizType === 'ai' ? 'Generating quiz questions...' : 'Loading quiz...'}
+          </p>
         </div>
+      </div>
+    );
+  }
+
+  if (error) {
+    return (
+      <div className="h-full flex items-center justify-center">
+        <div className="text-center max-w-md mx-auto px-4">
+          <p className="text-red-500 mb-4">{error}</p>
+          <p className="text-muted-foreground">
+            Don't worry - we've prepared a backup question so you can continue learning.
+          </p>
+        </div>
+      </div>
+    );
+  }
+
+  if (showResults) {
+    return (
+      <div className="h-full flex flex-col">
+        <div className="bg-white/70 backdrop-blur-sm border-b border-border/40 px-6 py-3 sticky top-0 z-10">
+          <h2 className="text-lg font-semibold">Quiz Results</h2>
+        </div>
+        
+        <div className="flex-1 p-6">
+          <div className="max-w-2xl mx-auto text-center">
+            <div className={`text-2xl font-bold mb-4 ${quizScore >= 70 ? 'text-green-600' : 'text-red-600'}`}>
+              Your Score: {quizScore}%
+            </div>
+            
+            {quizScore >= 70 ? (
+              <div className="space-y-4">
+                <p className="text-green-600">Congratulations! You've passed the quiz.</p>
+                <Button onClick={() => onComplete(quizScore)}>Continue to Next Section</Button>
+              </div>
+            ) : (
+              <div className="space-y-4">
+                <p className="text-muted-foreground">
+                  You need a score of 70% or higher to proceed. Would you like to try again?
+                </p>
+                <Button onClick={resetQuiz}>Retry Quiz</Button>
+              </div>
+            )}
+          </div>
+        </div>
+      </div>
+    );
+  }
+  
+  const question = getCurrentQuestion();
+  
+  if (!question) {
+    return (
+      <div className="h-full flex items-center justify-center">
+        <p className="text-muted-foreground">No questions available</p>
       </div>
     );
   }
@@ -167,26 +294,26 @@ export default function QuizMode({
   return (
     <div className="h-full flex flex-col">
       {/* Quiz header */}
-      <div className="bg-neutral-50 border-b border-neutral-100 px-6 py-3 flex items-center justify-between">
-        <div className="flex items-center">
-          <span className="text-sm font-medium text-neutral-900">
-            {quizType === 'db' ? 'Database Quiz' : 'AI-Generated Quiz'}
+      <div className="bg-white/70 backdrop-blur-sm border-b border-border/40 px-6 py-3 flex items-center justify-between sticky top-0 z-10">
+        <div className="flex items-center gap-2">
+          <span className="text-sm font-medium">
+            {quizType === 'db' ? 'Practice Quiz' : 'Challenge Quiz'}
           </span>
-          <span className="ml-2 text-xs bg-primary-100 text-primary-800 rounded-full px-2 py-0.5">
+          <span className="text-xs bg-primary/10 text-primary rounded-full px-2 py-0.5">
             {topicTitle}
           </span>
         </div>
         
-        <div className="text-sm text-neutral-600">
-          <span>Question {currentQuestionIndex + 1}/{quiz.questions.length}</span>
+        <div className="text-sm text-muted-foreground">
+          Question {currentQuestionIndex + 1} of {quiz.questions.length}
         </div>
       </div>
       
-      <div className="p-6 flex-1 overflow-auto">
+      <div className="flex-1 overflow-y-auto p-6">
         <div className="max-w-3xl mx-auto">
           {/* Question */}
           <div className="mb-8">
-            <h2 className="text-xl font-heading font-semibold text-neutral-900 mb-6">
+            <h2 className="text-xl font-semibold text-foreground mb-6">
               {question.question}
             </h2>
             
@@ -199,20 +326,20 @@ export default function QuizMode({
                   className={`w-full text-left px-4 py-3 rounded-lg border transition-colors ${
                     selectedAnswer === index 
                       ? 'bg-primary-50 border-primary-300 ring-2 ring-primary-200' 
-                      : 'border-neutral-300 hover:bg-neutral-50'
+                      : 'border-border hover:bg-muted/50'
                   }`}
                 >
                   <div className="flex items-start">
                     <span className={`h-5 w-5 flex items-center justify-center border rounded-full mr-3 mt-0.5 ${
                       selectedAnswer === index 
-                        ? 'border-primary-500 bg-primary-500 text-white' 
-                        : 'border-neutral-400 text-transparent'
+                        ? 'border-primary bg-primary text-primary-foreground' 
+                        : 'border-border text-transparent'
                     }`}>
                       <svg className="h-3 w-3" fill="currentColor" viewBox="0 0 12 12">
                         <circle cx="6" cy="6" r="3"></circle>
                       </svg>
                     </span>
-                    <span className="text-neutral-800">{option}</span>
+                    <span className="text-foreground">{option}</span>
                   </div>
                 </button>
               ))}
@@ -220,34 +347,20 @@ export default function QuizMode({
           </div>
           
           {/* Quiz navigation */}
-          <div className="flex justify-between mt-8">
+          <div className="flex items-center justify-between pt-4">
             <Button 
               variant="outline"
               onClick={prevQuestion}
               disabled={currentQuestionIndex === 0}
-              className={currentQuestionIndex === 0 ? 'opacity-50 cursor-not-allowed' : ''}
             >
-              <svg className="w-5 h-5 mr-1.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M15 19l-7-7 7-7"></path>
-              </svg>
               Previous
             </Button>
             
             <Button 
               onClick={nextQuestion}
               disabled={selectedAnswer === null}
-              className={selectedAnswer === null ? 'opacity-50 cursor-not-allowed' : ''}
             >
-              <span>{isLastQuestion() ? 'Submit' : 'Next'}</span>
-              {!isLastQuestion() ? (
-                <svg className="w-5 h-5 ml-1.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M9 5l7 7-7 7"></path>
-                </svg>
-              ) : (
-                <svg className="w-5 h-5 ml-1.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M5 13l4 4L19 7"></path>
-                </svg>
-              )}
+              {isLastQuestion() ? 'Submit Quiz' : 'Next Question'}
             </Button>
           </div>
         </div>
