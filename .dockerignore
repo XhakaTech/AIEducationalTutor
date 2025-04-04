@@ -1,0 +1,53 @@
+# Git
+.git
+.gitignore
+
+# Docker
+.dockerignore
+docker-compose.yml
+Dockerfile
+
+# Local database files
+*.sqlite
+*.sqlite3
+*.sqlite-journal
+
+# Development environments
+.idea
+.vscode
+*.swp
+*.swo
+.replit
+
+# Logs
+logs
+*.log
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+
+# Dependencies
+node_modules/
+
+# Build files
+dist/
+build/
+
+# Testing
+coverage/
+.nyc_output/
+
+# Environment variables
+.env.local
+.env.development
+.env.test
+
+# Keep production .env if you're using it
+# .env
+
+# Miscellaneous
+.DS_Store
+Thumbs.db
+.tmp/
+attached_assets/
+*.png 
