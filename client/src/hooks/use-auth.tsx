@@ -6,7 +6,7 @@ import {
 } from "@tanstack/react-query";
 import { insertUserSchema, User as SelectUser, InsertUser } from "@shared/schema";
 import { getQueryFn, apiRequest, queryClient } from "../lib/queryClient";
-import { useToast } from "@/hooks/use-toast";
+import { useToast } from "./use-toast";
 
 type AuthContextType = {
   user: SelectUser | null;
@@ -35,7 +35,25 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const loginMutation = useMutation({
     mutationFn: async (credentials: LoginData) => {
       const res = await apiRequest("POST", "/api/login", credentials);
-      return await res.json();
+      const data = await res.json();
+      
+      // Handle both response formats
+      if (data.token && data.user) {
+        localStorage.setItem('token', data.token);
+        return data.user;
+      } else if (data.id && data.username) {
+        // If the response is the user object directly
+        // Generate a temporary token from the user data
+        const tempToken = btoa(JSON.stringify({
+          id: data.id,
+          username: data.username,
+          name: data.name,
+          email: data.email
+        }));
+        localStorage.setItem('token', tempToken);
+        return data;
+      }
+      throw new Error("Invalid response from server");
     },
     onSuccess: (user) => {
       queryClient.setQueryData(["/api/user"], user);
@@ -56,13 +74,18 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const registerMutation = useMutation({
     mutationFn: async (credentials: InsertUser) => {
       const res = await apiRequest("POST", "/api/register", credentials);
-      return await res.json();
+      const data = await res.json();
+      if (data.token && data.user) {
+        localStorage.setItem('token', data.token);
+        return data.user;
+      }
+      throw new Error("Invalid response from server");
     },
     onSuccess: (user) => {
       queryClient.setQueryData(["/api/user"], user);
       toast({
         title: "Registration successful",
-        description: `Welcome to Crypto Academy, ${user.name}!`,
+        description: `Welcome to XhakaTutor, ${user.name}!`,
       });
     },
     onError: (error: Error) => {
@@ -77,6 +100,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const logoutMutation = useMutation({
     mutationFn: async () => {
       await apiRequest("POST", "/api/logout");
+      localStorage.removeItem('token');
     },
     onSuccess: () => {
       queryClient.setQueryData(["/api/user"], null);

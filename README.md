@@ -19,112 +19,84 @@ The application aims to provide an interactive learning experience using AI. Bas
 
 ## Tech Stack
 
-*   **Frontend:**
-    *   React
-    *   Vite
-    *   TypeScript
-    *   Wouter (Routing)
-    *   Tailwind CSS
-    *   Shadcn UI (Component Library)
-    *   TanStack Query (Data Fetching)
-*   **Backend:**
-    *   Node.js
-    *   Express.js
-    *   TypeScript
-    *   Drizzle ORM
-    *   Passport.js (Authentication)
-    *   `@google/generative-ai`
-    *   `ws` (WebSockets - potential)
-*   **Database:**
-    *   PostgreSQL-compatible (e.g., NeonDB)
-*   **Development Tools:**
-    *   `tsx` (TypeScript execution)
-    *   `esbuild` (Bundling)
-    *   `drizzle-kit` (ORM tooling)
+*   Node.js
+*   Express
+*   React
+*   TypeScript
+*   Tailwind CSS
+*   Prisma
+*   PostgreSQL
 
-## Local Development Setup
+## Development Setup
 
-1.  **Prerequisites:**
-    *   Node.js (v20 or later recommended)
-    *   npm (or pnpm/yarn)
-    *   Access to a PostgreSQL database (e.g., local instance or a cloud service like NeonDB).
-
-2.  **Clone the repository:**
-    ```bash
-    git clone <repository-url>
-    cd <repository-directory>
-    ```
-
-3.  **Install dependencies:**
+1.  **Install Dependencies:**
+    
     ```bash
     npm install
     ```
+    
+2.  **Environment Variables:**
+    
+    Create a `.env` file in the root directory with the following variables:
+    
+    ```
+    DATABASE_URL="postgresql://user:password@localhost:5432/dbname"
+    JWT_SECRET="your-secret-key"
+    PORT=8080
+    ```
+    
+3.  **Database Setup:**
+    
+    ```bash
+    npm run db:push
+    ```
+    
+4.  **Start Development Server:**
+    
+    ```bash
+    npm run dev
+    ```
+    
+    This command starts the backend server using `tsx`.
+    
+5.  **Build and Start Production Server:**
+    
+    ```bash
+    npm run build
+    npm start
+    ```
 
-4.  **Environment Variables:**
-    *   Create a `.env` file in the `server` directory.
-    *   Add necessary environment variables, including:
-        *   `DATABASE_URL`: Your PostgreSQL connection string (e.g., `postgresql://user:password@host:port/database?sslmode=require`).
-        *   `SESSION_SECRET`: A secret string for session management.
-        *   `GOOGLE_API_KEY`: Your API key for Google Generative AI (if used).
-        *   *(Potentially others based on `server/config.ts` or similar)*
+## Project Structure
 
-5.  **Database Setup:**
-    *   Ensure your PostgreSQL database is running.
-    *   Apply database migrations:
-        ```bash
-        npm run db:push
-        ```
-        *(This command uses `drizzle-kit` to synchronize your database schema based on definitions likely in the `shared` or `server/db` directory.)*
+*   `client/` - React frontend
+*   `server/` - Express backend
+*   `shared/` - Shared types and utilities
+*   `migrations/` - Database migrations
 
-6.  **Run the development server:**
-    *   This command typically starts both the backend server (using `tsx`) and the frontend development server (using Vite) concurrently. Check the `dev` script in `package.json`. If it only starts the backend:
-        ```bash
-        npm run dev
-        ```
-    *   You might need separate commands if `npm run dev` doesn't start both:
-        *   **Start Backend:** `npm run dev` (or specific script if `dev` is for frontend)
-        *   **Start Frontend:** Navigate to the `client` directory (`cd client`) and run `npm run dev` (assuming a standard Vite setup within the client). *However, the root `package.json` seems to handle the client build via Vite.* The `server/vite.ts` suggests the Express server handles serving the client in development.
+## API Documentation
+
+The API documentation is available at `/api/docs` when running the development server.
 
 ## Deployment
 
-Deploying this application typically involves building the frontend and backend assets and running the server in a production environment.
+The application is designed to be deployed on Cloud Run. The deployment process is handled by the `deploy-cloud-run.sh` script.
 
-**1. Build the Application:**
-
-```bash
-npm run build
-```
-
-*   This command should:
-    *   Build the React frontend using Vite (`vite build`).
-    *   Build the Express backend using `esbuild` (`esbuild server/index.ts ...`).
-    *   Place the output in a `dist` directory (check `vite.config.ts` and the `build` script in `package.json`).
-
-**2. Deployment Environment:**
-
-*   Choose a hosting provider (e.g., Vercel, Netlify, Render, Fly.io, AWS, Google Cloud).
-*   Ensure the environment has Node.js installed.
-*   Set up a production PostgreSQL database and configure the `DATABASE_URL` environment variable in your deployment environment.
-*   Set all other required environment variables (`SESSION_SECRET`, `GOOGLE_API_KEY`, etc.) in the deployment environment.
-
-**3. Run the Application:**
-
-*   Upload the contents of the `dist` directory and the `node_modules` (or run `npm install --production` on the server).
-*   Start the server using the production start script:
+1.  Build the application:
+    
     ```bash
-    npm start
+    npm run build
     ```
-    *(This executes `NODE_ENV=production node dist/index.js`)*
+    
+2.  Deploy to Cloud Run:
+    
+    ```bash
+    ./deploy-cloud-run.sh
+    ```
 
-**Best Way to Deploy Locally (for Testing/Development):**
+## Contributing
 
-The easiest way to *run* it locally for development is using the `npm run dev` command after completing the setup steps (installing dependencies, setting up the `.env` file, and running `npm run db:push`). This usually provides hot-reloading for both frontend and backend, making development faster.
-
-If you want to test the *production build* locally:
-
-1.  Run `npm run build`.
-2.  Ensure your `.env` file is correctly configured in the `server` directory (or set environment variables globally in your terminal).
-3.  Run `npm start`.
-4.  Access the application via the port specified in your server code (likely `localhost:3000` or similar).
-
-This simulates the production environment more closely than `npm run dev`. 
+1.  Fork the repository
+2.  Create a feature branch
+3.  Commit your changes
+4.  Push to the branch
+5.  Create a Pull Request 

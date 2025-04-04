@@ -80,7 +80,7 @@ export default function AuthPage() {
         <Card className="w-full shadow-lg">
           <CardHeader className="space-y-1">
             <CardTitle className="text-2xl font-bold">
-              Welcome to Crypto Academy
+              Welcome to XhakaTutor
             </CardTitle>
             <CardDescription>
               Sign in to your account or create a new one to start learning

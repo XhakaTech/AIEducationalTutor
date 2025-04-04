@@ -1,20 +1,61 @@
 import './config';
 import express, { type Request, Response, NextFunction } from "express";
 import { registerRoutes } from "./routes";
-import { setupVite, serveStatic, log } from "./vite";
 import { seedDatabase } from "./storage";
 import cors from 'cors';
 import { config } from 'dotenv';
+import { createServer } from 'http';
+import path from 'path';
+import { fileURLToPath } from 'url';
 
 config();
 
-const app = express();
-const port = parseInt(process.env.PORT || '5000', 10);
+// Get the directory name in ESM
+const __dirname = path.dirname(fileURLToPath(import.meta.url));
 
-app.use(cors());
+const app = express();
+const PORT = parseInt(process.env.PORT || '8080', 10);
+
+// Enable CORS for specific origins
+app.use(cors({
+  origin: [
+    'https://gen-lang-client-0728091754.web.app',
+    'https://xhakatutor.web.app',
+    'http://localhost:5173'
+  ],
+  methods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS'],
+  allowedHeaders: ['Content-Type', 'Authorization'],
+  credentials: false
+}));
+
 app.use(express.json());
 app.use(express.urlencoded({ extended: false }));
 
+// Add health check endpoint
+app.get('/_health', (req, res) => {
+  res.status(200).send('OK');
+});
+
+// Add root endpoint for basic connectivity test
+app.get('/', (req, res) => {
+  res.status(200).send('Backend is running');
+});
+
+// Serve static files in production
+if (process.env.NODE_ENV === 'production') {
+  const publicPath = path.join(__dirname, '..', 'dist', 'public');
+  app.use(express.static(publicPath));
+  
+  // Serve index.html for all routes except API routes
+  app.get('*', (req, res, next) => {
+    if (req.path.startsWith('/api/')) {
+      return next();
+    }
+    res.sendFile(path.join(publicPath, 'index.html'));
+  });
+}
+
+// Logging middleware
 app.use((req, res, next) => {
   const start = Date.now();
   const path = req.path;
@@ -38,7 +79,7 @@ app.use((req, res, next) => {
         logLine = logLine.slice(0, 79) + "…";
       }
 
-      log(logLine);
+      console.log(logLine);
     }
   });
 
@@ -46,44 +87,36 @@ app.use((req, res, next) => {
 });
 
 (async () => {
-  // Seed the database with initial data
   try {
-    await seedDatabase();
-    log('Database initialization complete');
-  } catch (error) {
-    log(`Error initializing database: ${error}`);
-  }
+    // Seed the database with initial data
+    try {
+      await seedDatabase();
+      console.log('Database initialization complete');
+    } catch (error) {
+      console.error(`Error initializing database: ${error}`);
+    }
 
-  // Register API routes first
-  const server = await registerRoutes(app);
+    // Register API routes
+    await registerRoutes(app);
 
-  // Error handling middleware
-  app.use((err: any, _req: Request, res: Response, _next: NextFunction) => {
-    const status = err.status || err.statusCode || 500;
-    const message = err.message || "Internal Server Error";
-
-    res.status(status).json({ message });
-    throw err;
-  });
-
-  // Vite middleware setup
-  if (process.env.NODE_ENV === 'development') {
-    const vite = await setupVite(app, server);
-    // Add middleware to handle API routes before Vite
-    app.use((req, res, next) => {
-      if (req.path.startsWith('/api/')) {
-        return next();
-      }
-      return vite.middlewares(req, res, next);
+    // Error handling middleware
+    app.use((err: any, _req: Request, res: Response, _next: NextFunction) => {
+      const status = err.status || err.statusCode || 500;
+      const message = err.message || "Internal Server Error";
+      console.error(`Error: ${message}`);
+      res.status(status).json({ message });
     });
-  } else {
-    serveStatic(app);
-  }
 
-  // ALWAYS serve the app on port 5000
-  // this serves both the API and the client.
-  // It is the only port that is not firewalled.
-  server.listen(port, 'localhost', () => {
-    log(`Server running on http://localhost:${port}`);
-  });
+    // Create HTTP server
+    const server = createServer(app);
+
+    // Start the server - explicitly bind to 0.0.0.0 for Cloud Run
+    server.listen(PORT, '0.0.0.0', () => {
+      console.log(`Server listening on port ${PORT} in ${process.env.NODE_ENV} mode`);
+      console.log(`Current directory: ${__dirname}`);
+    });
+  } catch (error) {
+    console.error(`Fatal error: ${error}`);
+    process.exit(1);
+  }
 })();

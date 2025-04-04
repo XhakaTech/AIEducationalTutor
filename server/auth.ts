@@ -6,8 +6,7 @@ import { scrypt, randomBytes, timingSafeEqual } from "crypto";
 import { promisify } from "util";
 import { storage } from "./storage";
 import { User as SelectUser } from "@shared/schema";
-import connectPg from "connect-pg-simple";
-import { pool } from "./db";
+import MemoryStore from "memorystore";
 
 declare global {
   namespace Express {
@@ -31,19 +30,19 @@ async function comparePasswords(supplied: string, stored: string) {
 }
 
 export function setupAuth(app: Express) {
-  const PostgresSessionStore = connectPg(session);
+  const MemoryStoreSession = MemoryStore(session);
   
   const sessionSettings: session.SessionOptions = {
     secret: process.env.SESSION_SECRET || "crypto-learning-secret",
     resave: false,
     saveUninitialized: false,
-    store: new PostgresSessionStore({ 
-      pool,
-      createTableIfMissing: true 
+    store: new MemoryStoreSession({
+      checkPeriod: 86400000 // prune expired entries every 24h
     }),
     cookie: {
       secure: process.env.NODE_ENV === "production",
-      maxAge: 30 * 24 * 60 * 60 * 1000 // 30 days
+      maxAge: 30 * 24 * 60 * 60 * 1000, // 30 days
+      sameSite: 'none'
     }
   };
 

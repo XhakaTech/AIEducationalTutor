@@ -1,4 +1,3 @@
-
 import { pgTable, text, serial, integer, boolean, timestamp, jsonb } from "drizzle-orm/pg-core";
 import { createInsertSchema } from "drizzle-zod";
 import { z } from "zod";
@@ -169,6 +168,16 @@ export const insertUserFinalTestResultSchema = createInsertSchema(userFinalTestR
   lesson_id: true,
   score: true,
   feedback: true,
+});
+
+// User Lessons
+export const user_lessons = pgTable('user_lessons', {
+  id: serial('id').primaryKey(),
+  user_id: integer('user_id').notNull().references(() => users.id),
+  lesson_id: integer('lesson_id').notNull().references(() => lessons.id),
+  progress: integer('progress').notNull().default(0),
+  created_at: timestamp('created_at').notNull().defaultNow(),
+  updated_at: timestamp('updated_at').notNull().defaultNow()
 });
 
 // Export types

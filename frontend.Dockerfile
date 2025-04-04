@@ -4,28 +4,29 @@ FROM node:20-alpine as builder
 WORKDIR /app
 
 # Copy package files
-COPY package.json package-lock.json ./
+COPY client/package*.json ./
 
 # Install dependencies
-RUN npm ci
+RUN npm install
 
 # Copy source code
-COPY . .
+COPY client ./
 
 # Build the application
 RUN npm run build
 
-# Production stage
-FROM nginx:alpine
+# Copy index.html to dist directory
+RUN cp client/index.html client/dist/
 
-# Copy built files from builder stage
-COPY --from=builder /app/dist /usr/share/nginx/html
+FROM node:20-alpine
+WORKDIR /app
 
-# Copy nginx configuration
-COPY nginx.conf /etc/nginx/conf.d/default.conf
+# Install express
+RUN npm init -y && npm install express
 
-# Expose port 80
-EXPOSE 80
+COPY --from=builder /app/dist ./dist
+COPY client/server.js .
 
-# Start nginx
-CMD ["nginx", "-g", "daemon off;"] 
+EXPOSE 8080
+
+CMD ["node", "server.js"] 

@@ -1,21 +1,22 @@
 import { Express } from "express";
 import { createServer, type Server } from "http";
 import { storage } from "./storage";
-import { 
-  getLessons, 
-  getLessonById, 
-  getSubtopicById, 
+import authRouter, { verifyToken } from "./routes/auth";
+import lessonsRouter from "./routes/lessons";
+import {
+  getLessons,
+  getLessonById,
+  getSubtopicById,
   getResourceById,
-  updateUserProgress 
+  updateUserProgress,
 } from "./controllers/lesson.controller";
 import {
   getQuizBySubtopicId,
   getFinalTestByLessonId,
   submitQuizResults,
-  submitFinalTestResults
+  submitFinalTestResults,
 } from "./controllers/quiz.controller";
 import {
-  adminAuth,
   getAllLessonsAdmin,
   createLesson,
   updateLesson,
@@ -24,34 +25,19 @@ import {
   createTopic,
   updateTopic,
   deleteTopic,
-  createSubtopic,
-  updateSubtopic,
-  deleteSubtopic,
-  createResource,
-  updateResource,
-  deleteResource,
-  createQuizQuestion,
-  updateQuizQuestion,
-  deleteQuizQuestion,
-  createFinalTestQuestion,
-  updateFinalTestQuestion,
-  deleteFinalTestQuestion
 } from "./controllers/admin.controller";
 import * as GeminiService from "./services/gemini.service";
-import { setupAuth } from "./auth";
 import { v4 as uuidv4 } from "uuid";
 
 export async function registerRoutes(app: Express): Promise<Server> {
-  // Configurar rutas de autenticación
-  setupAuth(app);
+  // Mount auth routes
+  app.use('/api', authRouter);
   
-  // Rutas de usuario
-  app.get("/api/user/:id", async (req, res) => {
-    // Verificar si el usuario está autenticado
-    if (!req.isAuthenticated()) {
-      return res.status(401).json({ message: "Not authenticated" });
-    }
-    
+  // Mount lessons routes
+  app.use('/api/lessons', lessonsRouter);
+
+  // User routes
+  app.get("/api/user/:id", verifyToken, async (req, res) => {
     const id = parseInt(req.params.id);
     const user = await storage.getUser(id);
     
@@ -59,63 +45,36 @@ export async function registerRoutes(app: Express): Promise<Server> {
       return res.status(404).json({ message: "User not found" });
     }
     
-    // Omitir la contraseña de la respuesta
+    // Omit password from response
     const { password, ...safeUser } = user;
     res.json(safeUser);
   });
   
-  // Rutas de lecciones
-  app.get("/api/lessons", getLessons);
+  // Lesson routes - commented out as we're using the router now
+  // app.get("/api/lessons", getLessons);
   app.get("/api/lessons/:id", getLessonById);
   app.get("/api/subtopics/:id", getSubtopicById);
   app.get("/api/resources/:id", getResourceById);
   
-  // Rutas de quiz
-  app.get("/api/quiz/subtopic/:id", getQuizBySubtopicId);
-  app.get("/api/quiz/lesson/:id/final", getFinalTestByLessonId);
-  app.post("/api/quiz/submit", submitQuizResults);
-  app.post("/api/quiz/final/submit", submitFinalTestResults);
+  // Quiz routes
+  app.get("/api/quiz/subtopic/:id", verifyToken, getQuizBySubtopicId);
+  app.get("/api/quiz/lesson/:id/final", verifyToken, getFinalTestByLessonId);
+  app.post("/api/quiz/submit", verifyToken, submitQuizResults);
+  app.post("/api/quiz/final/submit", verifyToken, submitFinalTestResults);
   
-  // Rutas de progreso
-  app.post("/api/progress", updateUserProgress);
+  // Progress routes
+  app.post("/api/progress", verifyToken, updateUserProgress);
   
-  // Rutas de administrador
-  app.get("/api/admin/lessons", getAllLessonsAdmin);
-  app.post("/api/admin/lessons", createLesson);
-  app.put("/api/admin/lessons/:id", updateLesson);
-  app.delete("/api/admin/lessons/:id", deleteLesson);
+  // Admin routes
+  app.get("/api/admin/lessons", verifyToken, getAllLessonsAdmin);
+  app.post("/api/admin/lessons", verifyToken, createLesson);
+  app.put("/api/admin/lessons/:id", verifyToken, updateLesson);
+  app.delete("/api/admin/lessons/:id", verifyToken, deleteLesson);
   
-  app.get("/api/admin/lessons/:lessonId/topics", getTopicsByLessonId);
-  app.post("/api/admin/topics", createTopic);
-  app.put("/api/admin/topics/:id", updateTopic);
-  app.delete("/api/admin/topics/:id", deleteTopic);
-  
-  app.get("/api/admin/topics/:topicId/subtopics", async (req, res) => {
-    try {
-      const { topicId } = req.params;
-      const subtopics = await storage.getSubtopicsByTopicId(parseInt(topicId));
-      res.json(subtopics);
-    } catch (error: any) {
-      console.error("Error fetching subtopics:", error);
-      res.status(500).json({ error: error?.message || "Failed to fetch subtopics" });
-    }
-  });
-  
-  app.post("/api/admin/subtopics", createSubtopic);
-  app.put("/api/admin/subtopics/:id", updateSubtopic);
-  app.delete("/api/admin/subtopics/:id", deleteSubtopic);
-  
-  app.post("/api/admin/resources", createResource);
-  app.put("/api/admin/resources/:id", updateResource);
-  app.delete("/api/admin/resources/:id", deleteResource);
-  
-  app.post("/api/admin/quiz-questions", createQuizQuestion);
-  app.put("/api/admin/quiz-questions/:id", updateQuizQuestion);
-  app.delete("/api/admin/quiz-questions/:id", deleteQuizQuestion);
-  
-  app.post("/api/admin/final-test-questions", createFinalTestQuestion);
-  app.put("/api/admin/final-test-questions/:id", updateFinalTestQuestion);
-  app.delete("/api/admin/final-test-questions/:id", deleteFinalTestQuestion);
+  app.get("/api/admin/lessons/:lessonId/topics", verifyToken, getTopicsByLessonId);
+  app.post("/api/admin/topics", verifyToken, createTopic);
+  app.put("/api/admin/topics/:id", verifyToken, updateTopic);
+  app.delete("/api/admin/topics/:id", verifyToken, deleteTopic);
   
   // Endpoints de la API Gemini
 

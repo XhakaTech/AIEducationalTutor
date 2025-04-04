@@ -19,7 +19,18 @@ export default function Dashboard() {
   
   const { data: lessons = [], isLoading, error } = useQuery<any[]>({
     queryKey: ["/api/lessons", user?.id],
-    queryFn: () => fetch(`/api/lessons?userId=${user?.id}`).then(res => res.json()),
+    queryFn: async () => {
+      const apiUrl = import.meta.env.VITE_API_URL?.trim() || '';
+      const res = await fetch(`${apiUrl}/api/lessons?userId=${user?.id}`, {
+        headers: {
+          'Authorization': `Bearer ${localStorage.getItem('token')}`
+        }
+      });
+      if (!res.ok) {
+        throw new Error('Failed to fetch lessons');
+      }
+      return res.json();
+    },
     enabled: !!user
   });
 
@@ -104,7 +115,7 @@ export default function Dashboard() {
                 <div className="bg-primary/10 p-2 rounded-full">
                   <Bitcoin className="h-7 w-7 text-primary" />
                 </div>
-                <span className="ml-3 text-xl font-heading font-bold bg-clip-text text-transparent bg-gradient-to-r from-primary to-secondary">Crypto Academy</span>
+                <span className="ml-3 text-xl font-heading font-bold bg-clip-text text-transparent bg-gradient-to-r from-primary to-secondary">XhakaTutor</span>
               </div>
             </div>
             {user && (

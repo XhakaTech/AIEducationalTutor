@@ -1,15 +1,95 @@
 import express from 'express';
 import { db } from '../db';
-import { lessons, topics } from '@shared/schema';
+import { lessons } from '@shared/schema';
 import { eq } from 'drizzle-orm';
+import { verifyToken } from './auth';
+import { storage } from '../storage';
 
 const router = express.Router();
+
+// Apply authentication middleware to all routes
+router.use(verifyToken);
 
 // Get all lessons
 router.get('/', async (req, res) => {
   try {
-    const allLessons = await db.select().from(lessons);
-    res.json(allLessons);
+    const userId = req.query.userId;
+    if (!userId) {
+      return res.status(400).json({ error: 'userId is required' });
+    }
+
+    // Use the existing storage interface if available
+    if (typeof storage?.getLessons === 'function') {
+      const lessons = await storage.getLessons();
+      
+      if (!lessons || lessons.length === 0) {
+        console.log('No lessons found in database');
+        return res.json([]);
+      }
+      
+      console.log(`Found ${lessons.length} lessons in database`);
+      
+      // Add progress information
+      const userProgressId = parseInt(userId as string);
+      const userProgress = await storage.getUserProgressByUserId(userProgressId);
+      
+      console.log(`Found ${userProgress?.length || 0} progress entries for user ${userProgressId}`);
+      
+      // Map through lessons and calculate progress based on completed subtopics
+      const lessonsWithProgress = await Promise.all(lessons.map(async (lesson) => {
+        try {
+          const lessonDetails = await storage.getLessonWithDetails(lesson.id);
+          let totalSubtopics = 0;
+          let completedSubtopics = 0;
+          
+          if (lessonDetails && lessonDetails.topics) {
+            lessonDetails.topics.forEach((topic: any) => {
+              if (topic.subtopics) {
+                totalSubtopics += topic.subtopics.length;
+                topic.subtopics.forEach((subtopic: any) => {
+                  const isCompleted = userProgress?.some(
+                    progress => progress.subtopic_id === subtopic.id && progress.completed
+                  );
+                  if (isCompleted) {
+                    completedSubtopics++;
+                  }
+                });
+              }
+            });
+          }
+          
+          const progress = totalSubtopics > 0 
+            ? Math.round((completedSubtopics / totalSubtopics) * 100) 
+            : 0;
+          
+          return { 
+            ...lesson, 
+            progress
+          };
+        } catch (err) {
+          console.error(`Error processing lesson ${lesson.id}:`, err);
+          return {
+            ...lesson,
+            progress: 0
+          };
+        }
+      }));
+      
+      return res.json(lessonsWithProgress);
+    }
+    
+    // Fallback to drizzle if storage interface is not available
+    const allLessons = await db
+      .select()
+      .from(lessons);
+
+    // Add default progress of 0
+    const lessonsWithProgress = allLessons.map(lesson => ({
+      ...lesson,
+      progress: 0
+    }));
+
+    res.json(lessonsWithProgress);
   } catch (error) {
     console.error('Error fetching lessons:', error);
     res.status(500).json({ error: 'Failed to fetch lessons' });

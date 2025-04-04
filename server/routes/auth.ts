@@ -4,6 +4,7 @@ import { users } from '@shared/schema';
 import { eq } from 'drizzle-orm';
 import bcrypt from 'bcrypt';
 import jwt from 'jsonwebtoken';
+import { config } from '../config';
 
 const router = Router();
 
@@ -33,11 +34,13 @@ router.post('/login', async (req, res) => {
         name: user[0].name,
         email: user[0].email
       },
-      process.env.JWT_SECRET || 'your-secret-key',
+      config.jwtSecret,
       { expiresIn: '24h' }
     );
 
-    res.json({ token });
+    // Return user data along with token
+    const { password: _, ...userWithoutPassword } = user[0];
+    res.json({ token, user: userWithoutPassword });
   } catch (error) {
     console.error('Error during login:', error);
     res.status(500).json({ error: 'Failed to login' });
@@ -74,11 +77,13 @@ router.post('/register', async (req, res) => {
         name: newUser[0].name,
         email: newUser[0].email
       },
-      process.env.JWT_SECRET || 'your-secret-key',
+      config.jwtSecret,
       { expiresIn: '24h' }
     );
 
-    res.json({ token });
+    // Return user data along with token
+    const { password: _, ...userWithoutPassword } = newUser[0];
+    res.json({ token, user: userWithoutPassword });
   } catch (error) {
     console.error('Error during registration:', error);
     res.status(500).json({ error: 'Failed to register' });
@@ -94,7 +99,7 @@ export const verifyToken = (req: any, res: any, next: any) => {
   }
 
   try {
-    const decoded = jwt.verify(token, process.env.JWT_SECRET || 'your-secret-key');
+    const decoded = jwt.verify(token, config.jwtSecret);
     req.user = decoded;
     next();
   } catch (error) {
