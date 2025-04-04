@@ -7,13 +7,13 @@ import {
   getSubtopicById, 
   getResourceById,
   updateUserProgress 
-} from './controllers/lesson.controller';
+} from "./controllers/lesson.controller";
 import {
   getQuizBySubtopicId,
   getFinalTestByLessonId,
   submitQuizResults,
   submitFinalTestResults
-} from './controllers/quiz.controller';
+} from "./controllers/quiz.controller";
 import {
   adminAuth,
   getAllLessonsAdmin,
@@ -36,92 +36,124 @@ import {
   createFinalTestQuestion,
   updateFinalTestQuestion,
   deleteFinalTestQuestion
-} from './controllers/admin.controller';
-import * as GeminiService from './services/gemini.service';
-import { setupAuth } from './auth';
-import { v4 as uuidv4 } from 'uuid';
+} from "./controllers/admin.controller";
+import * as GeminiService from "./services/gemini.service";
+import { setupAuth } from "./auth";
+import { v4 as uuidv4 } from "uuid";
 
 export async function registerRoutes(app: Express): Promise<Server> {
-  // Setup authentication routes
+  // Configurar rutas de autenticación
   setupAuth(app);
   
-  // User routes
-  app.get('/api/user/:id', async (req, res) => {
-    // Check if user is authenticated
+  // Rutas de usuario
+  app.get("/api/user/:id", async (req, res) => {
+    // Verificar si el usuario está autenticado
     if (!req.isAuthenticated()) {
-      return res.status(401).json({ message: 'Not authenticated' });
+      return res.status(401).json({ message: "Not authenticated" });
     }
     
     const id = parseInt(req.params.id);
     const user = await storage.getUser(id);
     
     if (!user) {
-      return res.status(404).json({ message: 'User not found' });
+      return res.status(404).json({ message: "User not found" });
     }
     
-    // Omit password from response
+    // Omitir la contraseña de la respuesta
     const { password, ...safeUser } = user;
     res.json(safeUser);
   });
   
-  // Lesson routes
-  app.get('/api/lessons', getLessons);
-  app.get('/api/lessons/:id', getLessonById);
-  app.get('/api/subtopics/:id', getSubtopicById);
-  app.get('/api/resources/:id', getResourceById);
+  // Rutas de lecciones
+  app.get("/api/lessons", getLessons);
+  app.get("/api/lessons/:id", getLessonById);
+  app.get("/api/subtopics/:id", getSubtopicById);
+  app.get("/api/resources/:id", getResourceById);
   
-  // Quiz routes
-  app.get('/api/quiz/subtopic/:id', getQuizBySubtopicId);
-  app.get('/api/quiz/lesson/:id/final', getFinalTestByLessonId);
-  app.post('/api/quiz/submit', submitQuizResults);
-  app.post('/api/quiz/final/submit', submitFinalTestResults);
+  // Rutas de quiz
+  app.get("/api/quiz/subtopic/:id", getQuizBySubtopicId);
+  app.get("/api/quiz/lesson/:id/final", getFinalTestByLessonId);
+  app.post("/api/quiz/submit", submitQuizResults);
+  app.post("/api/quiz/final/submit", submitFinalTestResults);
   
-  // Progress routes
-  app.post('/api/progress', updateUserProgress);
+  // Rutas de progreso
+  app.post("/api/progress", updateUserProgress);
   
-  // Admin routes
-  app.get('/api/admin/lessons', getAllLessonsAdmin);
-  app.post('/api/admin/lessons', createLesson);
-  app.put('/api/admin/lessons/:id', updateLesson);
-  app.delete('/api/admin/lessons/:id', deleteLesson);
+  // Rutas de administrador
+  app.get("/api/admin/lessons", getAllLessonsAdmin);
+  app.post("/api/admin/lessons", createLesson);
+  app.put("/api/admin/lessons/:id", updateLesson);
+  app.delete("/api/admin/lessons/:id", deleteLesson);
   
-  app.get('/api/admin/lessons/:lessonId/topics', getTopicsByLessonId);
-  app.post('/api/admin/topics', createTopic);
-  app.put('/api/admin/topics/:id', updateTopic);
-  app.delete('/api/admin/topics/:id', deleteTopic);
+  app.get("/api/admin/lessons/:lessonId/topics", getTopicsByLessonId);
+  app.post("/api/admin/topics", createTopic);
+  app.put("/api/admin/topics/:id", updateTopic);
+  app.delete("/api/admin/topics/:id", deleteTopic);
   
-  app.post('/api/admin/subtopics', createSubtopic);
-  app.put('/api/admin/subtopics/:id', updateSubtopic);
-  app.delete('/api/admin/subtopics/:id', deleteSubtopic);
+  app.get("/api/admin/topics/:topicId/subtopics", async (req, res) => {
+    try {
+      const { topicId } = req.params;
+      const subtopics = await storage.getSubtopicsByTopicId(parseInt(topicId));
+      res.json(subtopics);
+    } catch (error: any) {
+      console.error("Error fetching subtopics:", error);
+      res.status(500).json({ error: error?.message || "Failed to fetch subtopics" });
+    }
+  });
   
-  app.post('/api/admin/resources', createResource);
-  app.put('/api/admin/resources/:id', updateResource);
-  app.delete('/api/admin/resources/:id', deleteResource);
+  app.post("/api/admin/subtopics", createSubtopic);
+  app.put("/api/admin/subtopics/:id", updateSubtopic);
+  app.delete("/api/admin/subtopics/:id", deleteSubtopic);
   
-  app.post('/api/admin/quiz-questions', createQuizQuestion);
-  app.put('/api/admin/quiz-questions/:id', updateQuizQuestion);
-  app.delete('/api/admin/quiz-questions/:id', deleteQuizQuestion);
+  app.post("/api/admin/resources", createResource);
+  app.put("/api/admin/resources/:id", updateResource);
+  app.delete("/api/admin/resources/:id", deleteResource);
   
-  app.post('/api/admin/final-test-questions', createFinalTestQuestion);
-  app.put('/api/admin/final-test-questions/:id', updateFinalTestQuestion);
-  app.delete('/api/admin/final-test-questions/:id', deleteFinalTestQuestion);
+  app.post("/api/admin/quiz-questions", createQuizQuestion);
+  app.put("/api/admin/quiz-questions/:id", updateQuizQuestion);
+  app.delete("/api/admin/quiz-questions/:id", deleteQuizQuestion);
   
-  // Gemini API endpoints
+  app.post("/api/admin/final-test-questions", createFinalTestQuestion);
+  app.put("/api/admin/final-test-questions/:id", updateFinalTestQuestion);
+  app.delete("/api/admin/final-test-questions/:id", deleteFinalTestQuestion);
+  
+  // Endpoints de la API Gemini
 
-  // Generate content with Gemini
-  app.post('/api/gemini', async (req, res) => {
+  // Endpoint de prueba para Gemini API
+  app.get("/api/gemini/test", async (req, res) => {
+    try {
+      const testPrompt =
+        "Hello, this is a test message. Please respond with 'API is working' if you can read this.";
+      const response = await GeminiService.generateContent(testPrompt);
+      res.json({
+        status: "success",
+        message: "Gemini API test successful",
+        response
+      });
+    } catch (error: any) {
+      console.error("Gemini API test failed:", error);
+      res.status(500).json({
+        status: "error",
+        message: "Gemini API test failed",
+        error: error?.message || "Unknown error"
+      });
+    }
+  });
+
+  // Generar contenido con Gemini
+  app.post("/api/gemini", async (req, res) => {
     try {
       const { text, systemPrompt } = req.body;
       const response = await GeminiService.generateContent(text, systemPrompt);
       res.json({ response, status: "success" });
     } catch (error) {
-      console.error('Error calling Gemini API:', error);
-      res.status(500).json({ message: 'Failed to call Gemini API' });
+      console.error("Error calling Gemini API:", error);
+      res.status(500).json({ message: "Failed to call Gemini API" });
     }
   });
   
-  // Generate quiz with Gemini
-  app.post('/api/gemini/quiz', async (req, res) => {
+  // Generar quiz con Gemini
+  app.post("/api/gemini/quiz", async (req, res) => {
     try {
       const { subtopicTitle, subtopicObjective, keyConcepts, existingQuestions } = req.body;
       const quiz = await GeminiService.generateQuiz(
@@ -132,49 +164,49 @@ export async function registerRoutes(app: Express): Promise<Server> {
       );
       res.json(quiz);
     } catch (error) {
-      console.error('Error generating quiz with Gemini:', error);
-      res.status(500).json({ message: 'Failed to generate quiz' });
+      console.error("Error generating quiz with Gemini:", error);
+      res.status(500).json({ message: "Failed to generate quiz" });
     }
   });
   
-  // Simplify explanation with Gemini
-  app.post('/api/gemini/simplify', async (req, res) => {
+  // Simplificar explicación con Gemini
+  app.post("/api/gemini/simplify", async (req, res) => {
     try {
       const { content } = req.body;
       const simplified = await GeminiService.simplifyExplanation(content);
       res.json({ response: simplified, status: "success" });
     } catch (error) {
-      console.error('Error simplifying content with Gemini:', error);
-      res.status(500).json({ message: 'Failed to simplify content' });
+      console.error("Error simplifying content with Gemini:", error);
+      res.status(500).json({ message: "Failed to simplify content" });
     }
   });
   
-  // Generate feedback with Gemini
-  app.post('/api/gemini/feedback', async (req, res) => {
+  // Generar feedback con Gemini
+  app.post("/api/gemini/feedback", async (req, res) => {
     try {
       const { quizResults } = req.body;
       const feedback = await GeminiService.generateFeedback(quizResults);
       res.json({ response: feedback, status: "success" });
     } catch (error) {
-      console.error('Error generating feedback with Gemini:', error);
-      res.status(500).json({ message: 'Failed to generate feedback' });
+      console.error("Error generating feedback with Gemini:", error);
+      res.status(500).json({ message: "Failed to generate feedback" });
     }
   });
   
-  // Process chat messages with Gemini
-  app.post('/api/gemini/chat', async (req, res) => {
+  // Procesar mensajes de chat con Gemini
+  app.post("/api/gemini/chat", async (req, res) => {
     try {
       const { messages } = req.body;
       const response = await GeminiService.processChat(messages);
       res.json({ response, status: "success" });
     } catch (error) {
-      console.error('Error processing chat with Gemini:', error);
-      res.status(500).json({ message: 'Failed to process chat' });
+      console.error("Error processing chat with Gemini:", error);
+      res.status(500).json({ message: "Failed to process chat" });
     }
   });
   
-  // Generate subtopic content with Gemini
-  app.post('/api/gemini/subtopic', async (req, res) => {
+  // Generar contenido de subtemas con Gemini
+  app.post("/api/gemini/subtopic", async (req, res) => {
     try {
       const { subtopicTitle, subtopicObjective, keyConcepts } = req.body;
       const content = await GeminiService.generateSubtopicContent(
@@ -184,13 +216,13 @@ export async function registerRoutes(app: Express): Promise<Server> {
       );
       res.json({ response: content, status: "success" });
     } catch (error) {
-      console.error('Error generating subtopic content with Gemini:', error);
-      res.status(500).json({ message: 'Failed to generate subtopic content' });
+      console.error("Error generating subtopic content with Gemini:", error);
+      res.status(500).json({ message: "Failed to generate subtopic content" });
     }
   });
   
-  // Calculate final score with Gemini
-  app.post('/api/gemini/final-score', async (req, res) => {
+  // Calcular puntuación final con Gemini
+  app.post("/api/gemini/final-score", async (req, res) => {
     try {
       const { quizResults, finalTestResults, lessonTitle } = req.body;
       const scoreData = await GeminiService.calculateFinalScore(
@@ -200,28 +232,27 @@ export async function registerRoutes(app: Express): Promise<Server> {
       );
       res.json(scoreData);
     } catch (error) {
-      console.error('Error calculating final score with Gemini:', error);
-      res.status(500).json({ message: 'Failed to calculate final score' });
+      console.error("Error calculating final score with Gemini:", error);
+      res.status(500).json({ message: "Failed to calculate final score" });
     }
   });
   
-  // Validate if a topic is crypto-related with Gemini
-  app.post('/api/gemini/validate-topic', async (req, res) => {
+  // Validar si un tema está relacionado con cripto con Gemini
+  app.post("/api/gemini/validate-topic", async (req, res) => {
     try {
       const { topic } = req.body;
       
       if (!topic) {
         return res.status(400).json({ 
           isValid: false, 
-          message: 'Topic is required' 
+          message: "Topic is required" 
         });
       }
       
-      // For now, skip Gemini validation if we detect an API issue
+      // Si no se ha definido la clave de API, se usa un método de fallback
       if (!process.env.GEMINI_API_KEY) {
-        console.warn('GEMINI_API_KEY is not set, skipping validation');
-        // Fallback validation (assume valid if topic contains crypto-related terms)
-        const cryptoTerms = ['crypto', 'bitcoin', 'ethereum', 'blockchain', 'token', 'defi', 'wallet', 'mining'];
+        console.warn("GEMINI_API_KEY is not set, skipping validation");
+        const cryptoTerms = ["crypto", "bitcoin", "ethereum", "blockchain", "token", "defi", "wallet", "mining"];
         const isValid = cryptoTerms.some(term => topic.toLowerCase().includes(term));
         
         return res.json({
@@ -231,14 +262,12 @@ export async function registerRoutes(app: Express): Promise<Server> {
         });
       }
       
-      // System prompt to ensure English response and proper AI role
       const systemPrompt = `
         You are a cryptocurrency education expert who validates topics for a learning platform.
         Your task is to determine if topics are related to cryptocurrency or blockchain.
         Keep your responses in English only and respond with either 'YES' or 'NO' followed by a brief explanation.
       `;
       
-      // Main prompt with clear instructions
       const prompt = `
         Topic for validation: "${topic}"
         
@@ -262,12 +291,10 @@ export async function registerRoutes(app: Express): Promise<Server> {
       
       const response = await GeminiService.generateContent(prompt, systemPrompt);
       
-      // Improved validation logic
       const responseText = response.trim().toUpperCase();
-      const isValid = responseText.startsWith('YES');
+      const isValid = responseText.startsWith("YES");
       
       if (isValid) {
-        // Extract explanation (everything after "YES")
         const explanation = response.substring(3).trim();
         res.json({ 
           isValid: true,
@@ -275,7 +302,6 @@ export async function registerRoutes(app: Express): Promise<Server> {
           details: explanation
         });
       } else {
-        // Extract explanation (everything after "NO")
         const explanation = response.substring(2).trim();
         res.json({ 
           isValid: false,
@@ -284,12 +310,10 @@ export async function registerRoutes(app: Express): Promise<Server> {
         });
       }
       
-      // Log for monitoring
       console.log(`Topic validation: "${topic}" - Valid: ${isValid}`);
       
     } catch (error) {
-      console.error('Error validating topic:', error);
-      // Provide a more graceful fallback in case of API errors
+      console.error("Error validating topic:", error);
       res.json({ 
         isValid: true,
         message: "Unable to validate with AI. Creating custom lesson anyway...",
@@ -298,16 +322,15 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
   
-  // Create custom lesson with Gemini
-  app.post('/api/custom-lessons', async (req, res) => {
+  // Crear lección personalizada con Gemini
+  app.post("/api/custom-lessons", async (req, res) => {
     try {
       const { userId, topic, difficulty } = req.body;
       
       if (!topic || !difficulty) {
-        return res.status(400).json({ message: 'Topic and difficulty are required' });
+        return res.status(400).json({ message: "Topic and difficulty are required" });
       }
       
-      // Generate lesson content using Gemini
       const systemPrompt = `
         You are a cryptocurrency education specialist creating comprehensive educational lessons.
         You will create a well-structured lesson on the requested topic.
@@ -365,18 +388,13 @@ export async function registerRoutes(app: Express): Promise<Server> {
       `;
       
       try {
-        // Use our improved JSON parsing in the Gemini service
         const response = await GeminiService.generateContent(lessonTemplate, systemPrompt, true);
-        
-        // At this point, response should be a valid JSON string from our service
         const lessonData = JSON.parse(response);
         
-        // Validate that the response has the expected structure
         if (!lessonData.title || !lessonData.description || !Array.isArray(lessonData.topics)) {
-          throw new Error('Invalid lesson structure: missing required fields');
+          throw new Error("Invalid lesson structure: missing required fields");
         }
         
-        // Add additional fields
         const customLesson = {
           ...lessonData,
           id: uuidv4(),
@@ -385,51 +403,48 @@ export async function registerRoutes(app: Express): Promise<Server> {
           createdAt: new Date().toISOString()
         };
         
-        console.log('Custom lesson created successfully:', customLesson.title);
+        console.log("Custom lesson created successfully:", customLesson.title);
         res.json(customLesson);
-      } catch (error) {
-        console.error('Error creating custom lesson:', error);
+      } catch (error: any) {
+        console.error("Error creating custom lesson:", error);
         res.status(500).json({ 
-          message: 'Failed to create custom lesson. The AI response was not properly formatted.',
+          message: "Failed to create custom lesson. The AI response was not properly formatted.",
           error: error.message
         });
       }
     } catch (error) {
-      console.error('Error creating custom lesson:', error);
-      res.status(500).json({ message: 'Failed to create custom lesson' });
+      console.error("Error creating custom lesson:", error);
+      res.status(500).json({ message: "Failed to create custom lesson" });
     }
   });
   
-  // Text-to-speech endpoint using Gemini for speech-friendly optimization
-  app.post('/api/speak', async (req, res) => {
+  // Endpoint de Text-to-Speech usando Gemini para optimización
+  app.post("/api/speak", async (req, res) => {
     const { text } = req.body;
     
     if (!text) {
-      return res.status(400).json({ message: 'Text is required' });
+      return res.status(400).json({ message: "Text is required" });
     }
     
     try {
-      // Use Gemini to optimize the text for speech
       const optimizedText = await GeminiService.generateSpeech(text);
-      
-      // Return the optimized text and default voice parameters
-      res.json({ 
-        success: true, 
-        message: 'Text-to-speech request processed',
+      res.json({
+        success: true,
+        message: "Text-to-speech request processed",
         optimizedText,
         voiceParams: {
           rate: 0.9,
           pitch: 1.0,
           volume: 1.0,
-          preferredVoice: 'en-US'
+          preferredVoice: "en-US"
         }
       });
     } catch (error) {
-      console.error('Error processing text:', error);
-      res.status(500).json({ message: 'Failed to process text-to-speech request' });
+      console.error("Error processing text:", error);
+      res.status(500).json({ message: "Failed to process text-to-speech request" });
     }
   });
-
+  
   const httpServer = createServer(app);
   return httpServer;
 }

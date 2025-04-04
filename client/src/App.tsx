@@ -10,11 +10,12 @@ import Dashboard from "@/pages/dashboard";
 import Lesson from "@/pages/lesson";
 import AuthPage from "@/pages/auth-page";
 import AdminDashboard from "@/pages/admin-dashboard";
-import CustomLesson from './pages/custom-lesson'; // Added import
+import CustomLesson from './pages/custom-lesson';
 
 function Router() {
   return (
     <Switch>
+      {/* Protected routes */}
       <ProtectedRoute path="/" component={Dashboard} />
       <ProtectedRoute 
         path="/lesson/:id" 
@@ -23,9 +24,13 @@ function Router() {
           return <Lesson lessonId={parseInt(params.id)} />;
         }} 
       />
-      <Route path="/custom-lesson/:lessonId" component={({ params }) => <CustomLesson lessonId={params.lessonId} />} /> {/* Custom lesson route */}
+      
+      {/* Public routes */}
+      <Route path="/custom-lesson/:lessonId" component={({ params }) => <CustomLesson lessonId={params.lessonId} />} />
       <Route path="/auth" component={AuthPage} />
       <Route path="/admin" component={AdminDashboard} />
+      
+      {/* Catch-all route */}
       <Route component={NotFound} />
     </Switch>
   );

@@ -3,11 +3,12 @@ import { useState, useEffect } from "react";
 import LessonSidebar from "@/components/lesson/sidebar";
 import ContentArea from "@/components/lesson/content-area";
 import { useAuth } from "@/hooks/use-auth";
-import { Bitcoin, LogOut, Menu, ChevronLeft } from "lucide-react";
+import { Bitcoin, LogOut, Menu, ChevronLeft, BookOpen } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { useLocation } from "wouter";
 import { Sheet, SheetContent, SheetTrigger } from "@/components/ui/sheet";
 import { useIsMobile } from "@/hooks/use-mobile";
+import { Progress } from "@/components/ui/progress";
 
 interface LessonProps {
   lessonId: number;
@@ -186,10 +187,10 @@ export default function Lesson({ lessonId }: LessonProps) {
 
   if (isLoading) {
     return (
-      <div className="flex h-screen w-full items-center justify-center bg-neutral-50">
-        <div className="text-center">
+      <div className="flex min-h-screen w-full items-center justify-center bg-gradient-to-b from-background to-muted">
+        <div className="text-center animate-fade-in">
           <div className="h-16 w-16 mx-auto border-t-4 border-primary border-solid rounded-full animate-spin"></div>
-          <p className="mt-4 text-muted-foreground">Loading lesson...</p>
+          <p className="mt-4 text-muted-foreground">Loading your lesson...</p>
         </div>
       </div>
     );
@@ -197,22 +198,30 @@ export default function Lesson({ lessonId }: LessonProps) {
 
   if (error || !lesson) {
     return (
-      <div className="min-h-screen bg-neutral-50 p-6">
-        <div className="max-w-md mx-auto bg-card rounded-lg shadow-md p-6">
+      <div className="min-h-screen bg-gradient-to-b from-background to-muted p-6">
+        <div className="max-w-md mx-auto bg-white/90 rounded-xl shadow-md p-6 animate-fade-in">
           <h1 className="text-xl font-bold text-destructive mb-2">Error</h1>
           <p className="text-muted-foreground">Failed to load lesson. Please try again later.</p>
+          <Button variant="outline" className="mt-4" onClick={goToDashboard}>
+            <ChevronLeft className="h-4 w-4 mr-2" />
+            Back to Dashboard
+          </Button>
         </div>
       </div>
     );
   }
 
+  const progressPercentage = progress.total > 0 
+    ? Math.round((progress.completed / progress.total) * 100) 
+    : 0;
+
   return (
-    <div className="h-screen flex flex-col bg-neutral-50 overflow-hidden">
+    <div className="h-screen flex flex-col bg-gradient-to-b from-background to-muted overflow-hidden">
       {/* Fixed Header */}
-      <header className="bg-white shadow-sm z-10 flex-shrink-0">
+      <header className="bg-white/95 backdrop-blur-sm shadow-md z-10 flex-shrink-0 sticky top-0 border-b border-border/40">
         <div className="px-4 sm:px-6 lg:px-8">
           <div className="flex justify-between h-16 items-center">
-            <div className="flex items-center">
+            <div className="flex items-center gap-3">
               {isMobile ? (
                 <Sheet open={sidebarOpen} onOpenChange={setSidebarOpen}>
                   <SheetTrigger asChild>
@@ -220,9 +229,14 @@ export default function Lesson({ lessonId }: LessonProps) {
                       <Menu className="h-5 w-5" />
                     </Button>
                   </SheetTrigger>
-                  <SheetContent side="left" className="p-0 w-[280px]">
-                    <div className="bg-white p-4 border-b">
-                      <Bitcoin className="h-6 w-6 text-primary" />
+                  <SheetContent side="left" className="p-0 w-[300px]">
+                    <div className="bg-white p-4 border-b flex items-center">
+                      <div className="bg-primary/10 p-2 rounded-full mr-3 animate-float">
+                        <Bitcoin className="h-6 w-6 text-primary" />
+                      </div>
+                      <span className="text-lg font-heading font-bold bg-clip-text text-transparent bg-gradient-to-r from-primary to-secondary">
+                        Crypto Academy
+                      </span>
                     </div>
                     <div className="overflow-y-auto h-[calc(100vh-65px)]">
                       <LessonSidebar 
@@ -251,33 +265,40 @@ export default function Lesson({ lessonId }: LessonProps) {
                   <ChevronLeft className="h-5 w-5" />
                 </Button>
               )}
-              <div className="flex-shrink-0 flex items-center">
-                <Bitcoin className="h-8 w-8 text-primary" />
-                <span className="ml-2 text-xl font-heading font-semibold text-foreground truncate max-w-[150px] sm:max-w-xs">
-                  {lesson.title}
+              <div className="flex-shrink-0 flex items-center animate-float">
+                <div className="bg-primary/10 p-2 rounded-full mr-3">
+                  <Bitcoin className="h-6 w-6 text-primary" />
+                </div>
+                <span className="text-lg font-heading font-bold bg-clip-text text-transparent bg-gradient-to-r from-primary to-secondary">
+                  Crypto Academy
                 </span>
               </div>
             </div>
-
-            {/* Progress indicator */}
-            <div className="hidden md:flex items-center">
-              <div className="text-sm font-medium text-primary mr-3">
-                {Math.round((progress.completed / progress.total) * 100)}% Complete
-              </div>
-              <div className="w-32 h-2 bg-gray-200 rounded-full">
-                <div 
-                  className="h-2 bg-primary rounded-full" 
-                  style={{ width: `${(progress.completed / progress.total) * 100}%` }}
-                ></div>
+            
+            <div className="flex-1 mx-4 max-w-md hidden md:block">
+              <div className="flex items-center">
+                <div className="flex-shrink-0 mr-3">
+                  <div className="p-2 bg-secondary/10 rounded-full">
+                    <BookOpen className="h-5 w-5 text-secondary" />
+                  </div>
+                </div>
+                <div className="w-full">
+                  <div className="flex justify-between text-sm font-medium mb-1">
+                    <span>{lesson.title}</span>
+                    <span>{progressPercentage}% Complete</span>
+                  </div>
+                  <Progress 
+                    value={progressPercentage} 
+                    className="h-2 bg-muted" 
+                  />
+                </div>
               </div>
             </div>
-            
+
             {user && (
               <div className="flex items-center">
-                <div className="hidden sm:block">
-                  <span className="text-sm text-muted-foreground mr-2">{user.name}</span>
-                </div>
-                <div className="h-8 w-8 rounded-full bg-primary/20 flex items-center justify-center text-primary font-medium mr-2">
+                <span className="text-sm font-medium text-muted-foreground mr-4 hidden md:block">{user.name}</span>
+                <div className="h-9 w-9 rounded-full bg-gradient-to-br from-primary to-secondary flex items-center justify-center text-white font-medium shadow-md mr-4">
                   {user.name.split(' ').map((n: string) => n[0]).join('')}
                 </div>
                 <Button 
@@ -285,22 +306,24 @@ export default function Lesson({ lessonId }: LessonProps) {
                   size="sm" 
                   onClick={handleLogout} 
                   disabled={logoutMutation.isPending}
-                  className="hidden sm:flex"
+                  className="shadow-sm hover:shadow-md transition-all"
                 >
                   <LogOut className="h-4 w-4 mr-2" />
-                  <span className="hidden sm:inline">{logoutMutation.isPending ? "Logging out..." : "Logout"}</span>
+                  <span className="hidden md:inline">
+                    {logoutMutation.isPending ? "Logging out..." : "Logout"}
+                  </span>
                 </Button>
               </div>
             )}
           </div>
         </div>
       </header>
-
-      {/* Main Content Area */}
-      <main className="flex-1 flex overflow-hidden">
-        {/* Desktop Sidebar - hidden on mobile */}
+      
+      {/* Main content */}
+      <div className="flex-1 flex overflow-hidden animate-fade-in">
+        {/* Sidebar - desktop only */}
         {!isMobile && (
-          <div className="w-64 hidden md:block flex-shrink-0 overflow-y-auto border-r border-gray-200">
+          <div className="w-[300px] border-r border-border/40 bg-white/80 backdrop-blur-sm overflow-y-auto hidden md:block">
             <LessonSidebar 
               lesson={lesson}
               currentTopicIndex={currentTopicIndex}
@@ -311,8 +334,8 @@ export default function Lesson({ lessonId }: LessonProps) {
           </div>
         )}
         
-        {/* Content Area with scrollable content */}
-        <div className="flex-1 overflow-hidden">
+        {/* Content area */}
+        <div className="flex-1 overflow-hidden bg-white/50">
           <ContentArea 
             lesson={lesson}
             currentMode={currentMode}
@@ -328,7 +351,7 @@ export default function Lesson({ lessonId }: LessonProps) {
             onFinalTestComplete={handleFinalTestComplete}
           />
         </div>
-      </main>
+      </div>
     </div>
   );
 }

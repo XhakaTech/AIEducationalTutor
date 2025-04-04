@@ -5,7 +5,7 @@ import {
 } from "@google/generative-ai";
 
 // Initialize the Google Generative AI with the API key
-const genAI = new GoogleGenerativeAI(process.env.GEMINI_API_KEY!);
+const genAI = new GoogleGenerativeAI(process.env.GOOGLE_API_KEY!);
 
 // Default generation configuration
 const defaultConfig: GenerationConfig = {
@@ -40,9 +40,9 @@ export async function generateContent(
     "https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash-lite:generateContent";
 
   try {
-    const apiKey = process.env.GEMINI_API_KEY;
+    const apiKey = process.env.GOOGLE_API_KEY;
     if (!apiKey) {
-      throw new Error("GEMINI_API_KEY environment variable is not set");
+      throw new Error("GOOGLE_API_KEY environment variable is not set");
     }
 
     // If we're expecting JSON, add specific formatting instructions

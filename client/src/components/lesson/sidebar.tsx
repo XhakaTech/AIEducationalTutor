@@ -1,5 +1,7 @@
 import { Card, CardContent } from "@/components/ui/card";
 import { Progress } from "@/components/ui/progress";
+import { Check, ChevronRight, Lock, CheckCircle2 } from "lucide-react";
+import { Badge } from "@/components/ui/badge";
 
 interface LessonSidebarProps {
   lesson: any;
@@ -66,89 +68,115 @@ export default function LessonSidebar({
   };
   
   return (
-    <Card className="w-full md:w-64 flex-shrink-0 h-fit">
-      <CardContent className="p-4">
-        <h2 className="font-heading font-semibold text-lg mb-4 text-neutral-900">{lesson.title}</h2>
-        
-        <div className="space-y-1">
-          {lesson.topics.map((topic: any, topicIndex: number) => (
-            <div key={topic.id}>
+    <div className="p-4">
+      <div className="mb-6">
+        <h2 className="font-heading font-bold text-lg mb-2 text-foreground">{lesson.title}</h2>
+        <div className="flex gap-2 mb-4">
+          <Badge variant="outline" className="bg-primary/10 text-primary hover:bg-primary/20 capitalize">
+            {lesson.level}
+          </Badge>
+          <Badge variant="outline" className="bg-secondary/10 text-secondary hover:bg-secondary/20 uppercase">
+            {lesson.language}
+          </Badge>
+        </div>
+      </div>
+      
+      <div className="space-y-3 mb-6">
+        {lesson.topics.map((topic: any, topicIndex: number) => {
+          const isActive = currentTopicIndex === topicIndex;
+          const isCompleted = isTopicCompleted(topicIndex);
+          const subtopicsTotal = topic.subtopics.length;
+          const subtopicsCompleted = getCompletedSubtopics(topicIndex);
+          
+          return (
+            <div key={topic.id} className="animate-fade-in" style={{animationDelay: `${topicIndex * 50}ms`}}>
               <button 
                 onClick={() => setCurrentTopicIndex(topicIndex)}
-                className={`w-full flex items-center justify-between px-3 py-2 rounded-md text-left ${
-                  currentTopicIndex === topicIndex 
-                    ? 'bg-primary-50 text-primary-700' 
-                    : 'text-neutral-700 hover:bg-neutral-50'
+                className={`w-full flex items-center justify-between p-3 rounded-md text-left transition-all ${
+                  isActive 
+                    ? 'bg-primary/10 text-primary shadow-sm' 
+                    : isCompleted
+                      ? 'bg-secondary/5 text-foreground hover:bg-secondary/10'
+                      : 'text-foreground hover:bg-muted'
                 }`}
               >
-                <div className="flex items-center">
-                  {isTopicCompleted(topicIndex) && (
-                    <span className="mr-2 text-secondary-500">
-                      <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M5 13l4 4L19 7"></path>
-                      </svg>
-                    </span>
-                  )}
-                  {currentTopicIndex === topicIndex && !isTopicCompleted(topicIndex) && (
-                    <span className="mr-2 text-primary-500">
-                      <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M9 5l7 7-7 7"></path>
-                      </svg>
-                    </span>
-                  )}
-                  {currentTopicIndex !== topicIndex && !isTopicCompleted(topicIndex) && (
-                    <span className="mr-2 text-neutral-400">
-                      <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z"></path>
-                      </svg>
-                    </span>
-                  )}
-                  <span className="text-sm font-medium">{topic.title}</span>
+                <div className="flex items-center gap-2">
+                  <div className={`flex-shrink-0 w-6 h-6 rounded-full flex items-center justify-center ${
+                    isCompleted
+                      ? 'bg-secondary/20 text-secondary'
+                      : isActive
+                        ? 'bg-primary/20 text-primary'
+                        : 'bg-muted text-muted-foreground'
+                  }`}>
+                    {isCompleted ? (
+                      <CheckCircle2 className="w-4 h-4" />
+                    ) : isActive ? (
+                      <ChevronRight className="w-3.5 h-3.5" />
+                    ) : (
+                      topicIndex + 1
+                    )}
+                  </div>
+                  <span className="text-sm font-medium truncate">{topic.title}</span>
                 </div>
-                <span className="text-xs bg-neutral-100 text-neutral-600 rounded-full px-2 py-0.5">
-                  {getCompletedSubtopics(topicIndex)}/4
+                <span className="text-xs bg-background text-muted-foreground rounded-full px-2 py-0.5 ml-2 flex-shrink-0">
+                  {subtopicsCompleted}/{subtopicsTotal}
                 </span>
               </button>
               
-              {currentTopicIndex === topicIndex && (
-                <div className="ml-6 mt-1 space-y-1">
-                  {topic.subtopics.map((subtopic: any, subtopicIndex: number) => (
-                    <button 
-                      key={subtopic.id}
-                      onClick={() => setCurrentSubtopicIndex(subtopicIndex)}
-                      className={`w-full flex items-center justify-between px-3 py-1.5 rounded-md text-left text-sm ${
-                        currentTopicIndex === topicIndex && currentSubtopicIndex === subtopicIndex 
-                          ? 'bg-primary-50 text-primary-700' 
-                          : 'text-neutral-600 hover:bg-neutral-50'
-                      }`}
-                      disabled={!isSubtopicAvailable(topicIndex, subtopicIndex)}
-                    >
-                      <div className="flex items-center">
-                        {isSubtopicCompleted(topicIndex, subtopicIndex) && (
-                          <span className="mr-2 text-secondary-500">
-                            <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M5 13l4 4L19 7"></path>
-                            </svg>
-                          </span>
+              {isActive && (
+                <div className="ml-6 mt-2 space-y-1.5 pl-2 border-l border-border/60">
+                  {topic.subtopics.map((subtopic: any, subtopicIndex: number) => {
+                    const isSubtopicActive = currentTopicIndex === topicIndex && currentSubtopicIndex === subtopicIndex;
+                    const isCompleted = isSubtopicCompleted(topicIndex, subtopicIndex);
+                    const isAvailable = isSubtopicAvailable(topicIndex, subtopicIndex);
+                    
+                    return (
+                      <button 
+                        key={subtopic.id}
+                        onClick={() => isAvailable && setCurrentSubtopicIndex(subtopicIndex)}
+                        className={`w-full flex items-center gap-2 px-3 py-2 rounded-md text-left text-sm transition-all ${
+                          isSubtopicActive 
+                            ? 'bg-primary/10 text-primary' 
+                            : isCompleted
+                              ? 'text-secondary hover:bg-secondary/5'
+                              : isAvailable
+                                ? 'text-foreground hover:bg-muted/60'
+                                : 'text-muted-foreground opacity-60 cursor-not-allowed'
+                        }`}
+                        disabled={!isAvailable}
+                      >
+                        {isCompleted ? (
+                          <Check className="h-3.5 w-3.5 flex-shrink-0 text-secondary" />
+                        ) : !isAvailable ? (
+                          <Lock className="h-3.5 w-3.5 flex-shrink-0" />
+                        ) : (
+                          <div className="w-3.5 h-3.5 flex-shrink-0"></div>
                         )}
-                        <span>{subtopic.title}</span>
-                      </div>
-                    </button>
-                  ))}
+                        <span className={`truncate ${isCompleted ? 'font-medium' : ''}`}>
+                          {subtopic.title}
+                        </span>
+                      </button>
+                    );
+                  })}
                 </div>
               )}
             </div>
-          ))}
+          );
+        })}
+      </div>
+      
+      <div className="bg-muted/30 rounded-lg p-4 mt-auto">
+        <div className="flex justify-between text-sm text-muted-foreground mb-2">
+          <span>Course progress</span>
+          <span className="font-medium">{calculateOverallProgress()}%</span>
         </div>
+        <Progress value={calculateOverallProgress()} className="h-1.5" />
         
-        <div className="mt-6 pt-4 border-t border-neutral-100">
-          <div className="flex justify-between text-sm text-neutral-600 mb-2">
-            <span>Overall progress</span>
-            <span>{calculateOverallProgress()}%</span>
-          </div>
-          <Progress value={calculateOverallProgress()} className="h-2" />
+        <div className="flex justify-between items-center text-xs mt-4 text-muted-foreground">
+          <span>Lessons completed: {getCompletedSubtopics(currentTopicIndex)}</span>
+          <span>Total: {lesson.topics.reduce((total: number, topic: any) => total + topic.subtopics.length, 0)}</span>
         </div>
-      </CardContent>
-    </Card>
+      </div>
+    </div>
   );
 }
