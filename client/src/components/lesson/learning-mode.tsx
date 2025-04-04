@@ -191,12 +191,13 @@ export default function LearningMode({
       </div>
 
       {/* Bottom action bar */}
-      <div className="bg-white/70 backdrop-blur-sm border-t border-border/40 p-4 flex items-center justify-between sticky bottom-0 z-10">
-        <div className="flex items-center gap-2">
+      <div className="bg-white/70 backdrop-blur-sm border-t border-border/40 p-4 flex flex-col sm:flex-row items-center justify-between gap-4 sticky bottom-0 z-10">
+        <div className="flex flex-wrap items-center gap-2 w-full sm:w-auto justify-center sm:justify-start">
           <Button 
             variant="outline" 
             onClick={simplifyExplanation}
             disabled={isSimplifying}
+            className="flex-1 sm:flex-none min-w-[120px]"
           >
             {isSimplifying ? (
               <Loader2 className="h-4 w-4 mr-2 animate-spin" />
@@ -206,14 +207,21 @@ export default function LearningMode({
             Simplify
           </Button>
           
-          <Button variant="outline" onClick={() => setRaiseHandOpen(true)}>
+          <Button 
+            variant="outline" 
+            onClick={() => setRaiseHandOpen(true)} 
+            className="flex-1 sm:flex-none min-w-[120px]"
+          >
             <HelpCircle className="h-4 w-4 mr-2" />
             Ask a Question
           </Button>
 
           <Sheet>
             <SheetTrigger asChild>
-              <Button variant="outline">
+              <Button 
+                variant="outline" 
+                className="flex-1 sm:flex-none min-w-[120px]"
+              >
                 <Eye className="h-4 w-4 mr-2" />
                 Resources
               </Button>
@@ -254,7 +262,10 @@ export default function LearningMode({
           </Sheet>
         </div>
 
-        <Button onClick={handleComplete} className="gap-2">
+        <Button 
+          onClick={handleComplete} 
+          className="gap-2 w-full sm:w-auto min-w-[120px]"
+        >
           {isCompleted ? "Continue" : "Mark as Complete"}
           <ChevronRight className="h-4 w-4" />
         </Button>
